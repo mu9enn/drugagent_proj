@@ -1,0 +1,31 @@
+# Python caches
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments and local tooling
+.venv/
+venv/
+
+# Temp files
+*.tmp
+*.swp
+*.swo
+.DS_Store
+
+# Secrets / local config
+.env
+.env.*
+!.env.example
+.mcp.json
+
+# Large data artifacts
+get-molbench/data/
+get-molbench/outputs/
+ms_pipeline/results/
+ms_pipeline/molbench/
+
+# Other local runtime folders
+tmp/
+tmp_test_claude/

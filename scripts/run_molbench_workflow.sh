@@ -1,0 +1,158 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+GET_DIR="$ROOT_DIR/get-molbench"
+MS_DIR="$ROOT_DIR/ms_pipeline"
+
+SEED=""
+N_CASES=""
+
+usage() {
+  cat <<USAGE
+Usage:
+  bash scripts/run_molbench_workflow.sh --seed <int> --n-cases <int>
+
+Description:
+  1) Generate AC/VS/PF datasets under get-molbench/outputs/auto/{ac,vs,pf}
+  2) Merge PF v0/v1 to molbench-pf-<N>-<SEED>.csv
+  3) Send three ms_pipeline jobs via tmux send-keys:
+     - vs_pipe-2:0 (task=vs)
+     - ac_pipe-4:0 (task=ac)
+     - pf_pipe-5:0 (task=pf)
+USAGE
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --seed)
+      SEED="$2"
+      shift 2
+      ;;
+    --n-cases)
+      N_CASES="$2"
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "[error] Unknown argument: $1" >&2
+      usage >&2
+      exit 1
+      ;;
+  esac
+done
+
+if [[ -z "$SEED" || -z "$N_CASES" ]]; then
+  echo "[error] --seed and --n-cases are required" >&2
+  usage >&2
+  exit 1
+fi
+
+if ! [[ "$SEED" =~ ^[0-9]+$ && "$N_CASES" =~ ^[0-9]+$ ]]; then
+  echo "[error] --seed and --n-cases must be non-negative integers" >&2
+  exit 1
+fi
+
+if (( N_CASES <= 0 )); then
+  echo "[error] --n-cases must be > 0" >&2
+  exit 1
+fi
+
+if ! command -v tmux >/dev/null 2>&1; then
+  echo "[error] tmux not found in PATH" >&2
+  exit 1
+fi
+
+PYTHON_BIN="${PYTHON_BIN:-python}"
+
+AC_OUT_DIR="$GET_DIR/outputs/auto/ac"
+VS_OUT_DIR="$GET_DIR/outputs/auto/vs"
+PF_OUT_DIR="$GET_DIR/outputs/auto/pf"
+mkdir -p "$AC_OUT_DIR" "$VS_OUT_DIR" "$PF_OUT_DIR"
+
+AC_NAME="molbench-ac-${N_CASES}-${SEED}.csv"
+VS_NAME="molbench-vs-${N_CASES}-${SEED}.csv"
+
+PF_V0_CASES=$(( N_CASES / 2 ))
+PF_V1_CASES=$(( N_CASES - PF_V0_CASES ))
+PF_V0_SEED="$SEED"
+PF_V1_SEED=$(( SEED + 1 ))
+
+PF_V0_NAME="molbench-pf-v0-${PF_V0_CASES}-${PF_V0_SEED}.csv"
+PF_V1_NAME="molbench-pf-v1-${PF_V1_CASES}-${PF_V1_SEED}.csv"
+PF_MERGED_NAME="molbench-pf-${N_CASES}-${SEED}.csv"
+
+if (( PF_V0_CASES <= 0 || PF_V1_CASES <= 0 )); then
+  echo "[error] PF split requires n-cases >= 2 (current: ${N_CASES})" >&2
+  exit 1
+fi
+
+echo "[run] Generate AC"
+"$PYTHON_BIN" "$GET_DIR/pipelines/generate_molbench_ac.py" \
+  --n-cases "$N_CASES" \
+  --seed "$SEED" \
+  --out-dir "outputs/auto/ac" \
+  --out-name "$AC_NAME"
+
+echo "[run] Generate VS"
+"$PYTHON_BIN" "$GET_DIR/pipelines/generate_molbench_vs.py" \
+  --n-cases "$N_CASES" \
+  --seed "$SEED" \
+  --out-dir "outputs/auto/vs" \
+  --out-name "$VS_NAME" \
+  --no-remote-target-name
+
+echo "[run] Generate PF v0"
+"$PYTHON_BIN" "$GET_DIR/pipelines/generate_molbench_pf.py" \
+  --variant v0 \
+  --n-cases "$PF_V0_CASES" \
+  --seed "$PF_V0_SEED" \
+  --out-dir "outputs/auto/pf" \
+  --out-name "$PF_V0_NAME"
+
+echo "[run] Generate PF v1"
+"$PYTHON_BIN" "$GET_DIR/pipelines/generate_molbench_pf.py" \
+  --variant v1 \
+  --n-cases "$PF_V1_CASES" \
+  --seed "$PF_V1_SEED" \
+  --out-dir "outputs/auto/pf" \
+  --out-name "$PF_V1_NAME"
+
+echo "[run] Merge PF"
+"$PYTHON_BIN" "$GET_DIR/scripts/merge_molbench_pf.py" \
+  --v0-csv "$PF_OUT_DIR/$PF_V0_NAME" \
+  --v1-csv "$PF_OUT_DIR/$PF_V1_NAME" \
+  --out "$PF_OUT_DIR/$PF_MERGED_NAME"
+
+AC_CSV="$(realpath "$AC_OUT_DIR/$AC_NAME")"
+VS_CSV="$(realpath "$VS_OUT_DIR/$VS_NAME")"
+PF_CSV="$(realpath "$PF_OUT_DIR/$PF_MERGED_NAME")"
+
+ensure_tmux_target() {
+  local target="$1"
+  if ! tmux list-panes -t "$target" >/dev/null 2>&1; then
+    echo "[error] tmux target not found: $target" >&2
+    exit 1
+  fi
+}
+
+ensure_tmux_target "vs_pipe-2:0"
+ensure_tmux_target "ac_pipe-4:0"
+ensure_tmux_target "pf_pipe-5:0"
+
+VS_CMD="bash $MS_DIR/claude_agent/test_flow_claude.sh qwen-397b claude 0 1 1 vs $VS_CSV 1"
+AC_CMD="bash $MS_DIR/claude_agent/test_flow_claude.sh qwen-397b claude 0 1 1 ac $AC_CSV 1"
+PF_CMD="bash $MS_DIR/claude_agent/test_flow_claude.sh qwen-397b claude 0 1 1 pf $PF_CSV 1"
+
+tmux send-keys -t vs_pipe-2:0 "$VS_CMD" C-m
+tmux send-keys -t ac_pipe-4:0 "$AC_CMD" C-m
+tmux send-keys -t pf_pipe-5:0 "$PF_CMD" C-m
+
+echo "[done] tmux commands sent"
+echo "  vs_pipe-2:0 -> $VS_CMD"
+echo "  ac_pipe-4:0 -> $AC_CMD"
+echo "  pf_pipe-5:0 -> $PF_CMD"
