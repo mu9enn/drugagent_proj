@@ -55,6 +55,7 @@ fi
 RESULTS_ROOT="$REPO_DIR/results"
 LAUNCH_SCRIPT="$REPO_DIR/claude_agent/launch_claude.sh"
 EVAL_SCRIPT="$REPO_DIR/evaluate/run_eval_bench.py"
+PYTHON_BIN="${PYTHON_BIN:-python}"
 
 if [[ ! -f "$DATASET_CSV" ]]; then
   echo "[error] dataset csv not found: $DATASET_CSV" >&2
@@ -120,6 +121,6 @@ if [[ ! -d "$RESULTS_DIR" ]]; then
   exit 1
 fi
 
-python "$EVAL_SCRIPT" "$RESULTS_DIR" --task "$TASK"
+"$PYTHON_BIN" "$EVAL_SCRIPT" "$RESULTS_DIR" --task "$TASK"
 
 echo "[done] full pipeline completed (task=$TASK)"

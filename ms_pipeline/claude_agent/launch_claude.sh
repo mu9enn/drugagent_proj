@@ -5,12 +5,22 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$REPO_DIR"
 
+# Auto-load shared env file from the merged workspace root if present.
+ROOT_ENV_FILE="${ROOT_ENV_FILE:-$REPO_DIR/../.env}"
+if [[ -f "$ROOT_ENV_FILE" ]]; then
+  set -a
+  # shellcheck disable=SC1090
+  source "$ROOT_ENV_FILE"
+  set +a
+fi
+
 # Shared options
 TASK="${TASK:-vs}"
 SKILLS_ROOT="${SKILLS_ROOT:-}"
 SYSTEM_PROMPT_FILE="${SYSTEM_PROMPT_FILE:-}"
 PROVIDER="${CC_SWITCH_PROVIDER:-qwen-397b}"
 CLAUDE_BIN="${CLAUDE_BIN:-claude}"
+PYTHON_BIN="${PYTHON_BIN:-python}"
 SKIP_PROVIDER_SWITCH=0
 SKIP_MCP_VERIFY=0
 
@@ -167,7 +177,7 @@ cleanup_mcp_config() {
 trap cleanup_mcp_config EXIT
 
 write_task_mcp_config() {
-  python - "$MCP_CONFIG_FILE" "$MCP_SERVER_NAME" "$MCP_SERVER_URL" "$MCP_SERVER_AUTH_HEADER" "$MCP_SERVER_AUTH" <<'PY'
+  "$PYTHON_BIN" - "$MCP_CONFIG_FILE" "$MCP_SERVER_NAME" "$MCP_SERVER_URL" "$MCP_SERVER_AUTH_HEADER" "$MCP_SERVER_AUTH" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -211,7 +221,7 @@ if [[ "$RUN_DATASET" -eq 1 ]]; then
   fi
 
   cmd=(
-    python "$RUNNER"
+    "$PYTHON_BIN" "$RUNNER"
     --task "$TASK"
     --dataset-csv "$DATASET_CSV"
     --skills-root "$SKILLS_ROOT"
@@ -277,7 +287,7 @@ set +e
 RC=$?
 set -e
 
-python - "$WORKDIR" "$PROVIDER" "$CLAUDE_BIN" "$RC" <<'PY'
+"$PYTHON_BIN" - "$WORKDIR" "$PROVIDER" "$CLAUDE_BIN" "$RC" <<'PY'
 import json
 import sys
 from datetime import datetime

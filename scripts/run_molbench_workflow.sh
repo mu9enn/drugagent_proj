@@ -5,6 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 GET_DIR="$ROOT_DIR/get-molbench"
 MS_DIR="$ROOT_DIR/ms_pipeline"
+ENV_FILE="$ROOT_DIR/.env"
 
 SEED=""
 N_CASES=""
@@ -66,6 +67,32 @@ if ! command -v tmux >/dev/null 2>&1; then
   echo "[error] tmux not found in PATH" >&2
   exit 1
 fi
+
+if [[ -f "$ENV_FILE" ]]; then
+  set -a
+  # shellcheck disable=SC1090
+  source "$ENV_FILE"
+  set +a
+fi
+
+REQUIRED_ENV_VARS=(
+  MOLCLAW_VS_MCP_URL
+  MOLCLAW_VS_MCP_AUTH
+  MOLCLAW_SCP_MCP_URL
+  MOLCLAW_SCP_MCP_AUTH
+)
+for var_name in "${REQUIRED_ENV_VARS[@]}"; do
+  if [[ -z "${!var_name:-}" ]]; then
+    echo "[error] Missing required env: $var_name" >&2
+    echo "        Please set it in shell env or $ENV_FILE" >&2
+    exit 1
+  fi
+done
+
+MOLCLAW_VS_MCP_SERVER_NAME="${MOLCLAW_VS_MCP_SERVER_NAME:-molclaw-vs}"
+MOLCLAW_VS_MCP_AUTH_HEADER="${MOLCLAW_VS_MCP_AUTH_HEADER:-Authorization}"
+MOLCLAW_SCP_MCP_SERVER_NAME="${MOLCLAW_SCP_MCP_SERVER_NAME:-molclaw-scp}"
+MOLCLAW_SCP_MCP_AUTH_HEADER="${MOLCLAW_SCP_MCP_AUTH_HEADER:-SCP-HUB-API-KEY}"
 
 PYTHON_BIN="${PYTHON_BIN:-python}"
 
@@ -144,9 +171,17 @@ ensure_tmux_target "vs_pipe-2:0"
 ensure_tmux_target "ac_pipe-4:0"
 ensure_tmux_target "pf_pipe-5:0"
 
-VS_CMD="bash $MS_DIR/claude_agent/test_flow_claude.sh qwen-397b claude 0 1 1 vs $VS_CSV 1"
-AC_CMD="bash $MS_DIR/claude_agent/test_flow_claude.sh qwen-397b claude 0 1 1 ac $AC_CSV 1"
-PF_CMD="bash $MS_DIR/claude_agent/test_flow_claude.sh qwen-397b claude 0 1 1 pf $PF_CSV 1"
+if [[ -f "$ENV_FILE" ]]; then
+  printf -v ENV_BOOTSTRAP 'set -a; source "%s"; set +a; export PYTHON_BIN=%q; ' "$ENV_FILE" "$PYTHON_BIN"
+else
+  printf -v ENV_BOOTSTRAP \
+    'export MOLCLAW_VS_MCP_SERVER_NAME=%q MOLCLAW_VS_MCP_URL=%q MOLCLAW_VS_MCP_AUTH_HEADER=%q MOLCLAW_VS_MCP_AUTH=%q MOLCLAW_SCP_MCP_SERVER_NAME=%q MOLCLAW_SCP_MCP_URL=%q MOLCLAW_SCP_MCP_AUTH_HEADER=%q MOLCLAW_SCP_MCP_AUTH=%q PYTHON_BIN=%q; ' \
+    "$MOLCLAW_VS_MCP_SERVER_NAME" "$MOLCLAW_VS_MCP_URL" "$MOLCLAW_VS_MCP_AUTH_HEADER" "$MOLCLAW_VS_MCP_AUTH" \
+    "$MOLCLAW_SCP_MCP_SERVER_NAME" "$MOLCLAW_SCP_MCP_URL" "$MOLCLAW_SCP_MCP_AUTH_HEADER" "$MOLCLAW_SCP_MCP_AUTH" "$PYTHON_BIN"
+fi
+VS_CMD="$ENV_BOOTSTRAP bash $MS_DIR/claude_agent/test_flow_claude.sh qwen-397b claude 0 1 1 vs $VS_CSV 1"
+AC_CMD="$ENV_BOOTSTRAP bash $MS_DIR/claude_agent/test_flow_claude.sh qwen-397b claude 0 1 1 ac $AC_CSV 1"
+PF_CMD="$ENV_BOOTSTRAP bash $MS_DIR/claude_agent/test_flow_claude.sh qwen-397b claude 0 1 1 pf $PF_CSV 1"
 
 tmux send-keys -t vs_pipe-2:0 "$VS_CMD" C-m
 tmux send-keys -t ac_pipe-4:0 "$AC_CMD" C-m
