@@ -1,170 +1,80 @@
-<a id="top"></a>
+# mol-pipeline
 
-# Mol-Pipeline
+统一分子任务执行与后处理工程（`vs/ac/pf/e2e/kg`），当前采用硬切后的 `pipeline/` 架构。
 
-<!-- ![Paper](https://img.shields.io/badge/Paper-MolBench--MS%20aligned-informational)
-![License](https://img.shields.io/badge/License-Unspecified-lightgrey) -->
-![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
-<!-- ![Runtime](https://img.shields.io/badge/Runtime-Conda%20%2B%20tmux-6f42c1) -->
+## 目录结构
 
-Unified **dataset generation + agent execution + evaluation** workflow for MolBench-style tasks (`AC`, `VS`, `PF`).
+- `pipeline/claude_agent`：只负责执行任务与落盘 raw 会话（`complete_session.jsonl` 等）
+- `pipeline/evaluate`：只负责 `vs/ac/pf` 评测
+- `pipeline/postprocess`：后处理（trajectory 重建、molclaw usage 汇总、SFT/RL 转换）
+- `pipeline/e2e`：E2E 数据构建与运行入口
+- `pipeline/kg`：KG-sampled 数据构建、运行与审计
+- `results/`：统一运行产物根目录
+- `molbench/`：统一数据集目录
+- `skills/skills_vs`、`skills/skills_full`：统一技能与系统提示目录
 
-If this helps your experiments, a star is always appreciated.
+## 一键入口
 
-## 🚀 Overview
-This repository combines two previously separate codebases into one practical research pipeline:
+执行（只跑并落盘 raw）：
 
-- **`get-molbench/`** generates benchmark CSVs for three complementary molecular reasoning tasks.
-- **`ms_pipeline/`** runs agent rollouts, exports trajectories, and evaluates predictions.
-- **`scripts/run_molbench_workflow.sh`** provides a one-command path from dataset generation to tmux-dispatched task runs.
-
-Design-wise, the project focuses on four contribution-level goals reflected in code:
-
-- **Single execution truth** for dataset runs (`run_claude.py` as the core runner).
-- **Multi-task support** across `vs`, `ac`, `pf` with task-aware prompts/MCP routing.
-- **Trajectory-first outputs** (`trajectory_level`, `step_level`, accepted/rejected splits).
-- **Audit-ready evaluation** with quality checks and RDKit-aware canonical matching.
-
-## 🧪 Benchmarks & Datasets
-MolBench-style evaluation here targets distinct but complementary capabilities in molecular agents: **pairwise affinity reasoning (AC)**, **ranking under realistic candidate sets (VS)**, and **rule-grounded filtering/similarity reasoning (PF)**.
-
-- **AC (Binding Affinity Comparison)**
-  - Predict which molecule is stronger/weaker for a target.
-  - Generator: `get-molbench/pipelines/generate_molbench_ac.py`
-- **VS (Virtual Screening)**
-  - Rank candidates for target-specific activity.
-  - Generator: `get-molbench/pipelines/generate_molbench_vs.py`
-- **PF (Property Filtering / Similarity)**
-  - Filter molecules by constraints or perform similarity-style tasks.
-  - Generator: `get-molbench/pipelines/generate_molbench_pf.py` (`v0`, `v1`, `sim`)
-
-Reference samples are available in `get-molbench/examples/` and default run datasets in `ms_pipeline/molbench/`.
-
-## 🧩 Skills & Modules
-- **Dataset construction (`get-molbench/`)**
-  - Canonical generators and wrappers for AC/VS/PF.
-  - Includes merge utilities like `scripts/merge_molbench_pf.py`.
-- **Agent orchestration (`ms_pipeline/claude_agent/`)**
-  - `launch_claude.sh`: environment and runner entry.
-  - `test_flow_claude.sh`: inference + evaluation orchestration.
-  - `run_claude.py`: rollout execution, logging, completeness checks.
-  - `trajectory_exporter.py`: normalized trajectory datasets.
-- **Evaluation (`ms_pipeline/evaluate/`)**
-  - `run_eval_bench.py`: evaluation entrypoint.
-  - `eval_runner.py`: task-specific metrics and audit fields.
-- **End-to-end automation (`scripts/`)**
-  - `run_molbench_workflow.sh`: generate datasets and dispatch three tmux tasks.
-
-## ⚙️ Setup
 ```bash
-# 1) Clone
-git clone <YOUR_REPO_URL>
-cd mol-pipeline
-
-# 2) Create environment
-conda env create -f get-molbench/environment.yml
-conda activate get-molbench
-
-# 3) (Optional) keep pip dependencies aligned
-pip install -r get-molbench/requirements.txt
+bash pipeline/claude_agent/run_execute.sh --run-dataset --task vs --dataset-csv molbench/molbench-vs-30.csv
 ```
 
-## 🔐 Quickstart Config
-Create runtime config from template (do not commit secrets):
+评测（仅 `vs/ac/pf`）：
 
 ```bash
-cp .env.template .env
-# Fill required fields in .env:
-# - MOLCLAW_VS_MCP_URL
-# - MOLCLAW_VS_MCP_AUTH
-# - MOLCLAW_SCP_MCP_URL
-# - MOLCLAW_SCP_MCP_AUTH
+bash pipeline/evaluate/run_evaluate.sh results/<run_dir> vs
 ```
 
-## ▶️ Run
-### 1) One-command workflow (recommended)
+后处理（全量，从 raw 会话重建）：
+
 ```bash
-# Generates AC/VS/PF datasets under get-molbench/outputs/auto/
-# Then dispatches 3 tmux targets:
-#   vs_pipe-2:0, ac_pipe-4:0, pf_pipe-5:0
-# Prerequisite: these tmux targets already exist.
+bash pipeline/postprocess/run_postprocess.sh --results-root results
+```
+
+`run_postprocess.sh` 固定流程：
+
+1. `trajectory_exporter.py`
+2. `scan_molclaw_usage.py`
+3. `post_process_sft.py`
+
+输出位于：
+
+- `results/postprocess_candidates/mcp_sft_all.jsonl`
+- `results/postprocess_candidates/mcp_rl_prompts_all.jsonl`
+- `results/postprocess_candidates/sft_outputs/*`
+
+## 规则约定
+
+- 不引入 reward 字段。
+- `vs/ac/pf` 保留单样本指标（如 `top3_hit_num/is_correct/f1`）。
+- `e2e/kg` 不做任务质量门，但必须执行完成（`return_code==0 && !timed_out && session存在`）。
+- **全任务 accepted 必须满足 `molclaw_usage > 0`**，否则标记 `missing_molclaw_usage`。
+- `--answer-hit-only` 仅在 `post_process_sft.py` 阶段作用于 `vs/ac/pf`，不影响 `kg/e2e`。
+
+## 常用工作流
+
+生成并下发 AC/VS/PF：
+
+```bash
 bash scripts/run_molbench_workflow.sh --seed 42 --n-cases 30
 ```
 
-### 2) Generate datasets manually
+构建与运行 KG：
+
 ```bash
-# AC
-python get-molbench/pipelines/generate_molbench_ac.py \
-  --n-cases 30 --seed 42 \
-  --out-dir outputs/auto/ac \
-  --out-name molbench-ac-30-42.csv
+python pipeline/kg/scripts/build_kg_task_dataset.py \
+  --kg-run-dir /path/to/molclaw-kg/runs/<run_id> \
+  --output-dir pipeline/kg/data/<run_id>
 
-# VS
-python get-molbench/pipelines/generate_molbench_vs.py \
-  --n-cases 30 --seed 42 \
-  --out-dir outputs/auto/vs \
-  --out-name molbench-vs-30-42.csv \
-  --no-remote-target-name
-
-# PF (split + merge, sim skipped by default in the integrated workflow)
-python get-molbench/pipelines/generate_molbench_pf.py \
-  --variant v0 --n-cases 15 --seed 42 \
-  --out-dir outputs/auto/pf \
-  --out-name molbench-pf-v0-15-42.csv
-
-python get-molbench/pipelines/generate_molbench_pf.py \
-  --variant v1 --n-cases 15 --seed 43 \
-  --out-dir outputs/auto/pf \
-  --out-name molbench-pf-v1-15-43.csv
-
-python get-molbench/scripts/merge_molbench_pf.py \
-  --v0-csv get-molbench/outputs/auto/pf/molbench-pf-v0-15-42.csv \
-  --v1-csv get-molbench/outputs/auto/pf/molbench-pf-v1-15-43.csv \
-  --out get-molbench/outputs/auto/pf/molbench-pf-30-42.csv
+bash pipeline/kg/run_kg_pipeline.sh \
+  --kg-task-file pipeline/kg/data/<run_id>/kg_sampled_tasks.jsonl \
+  --n-cases 1
 ```
 
-### 3) Run a single task pipeline
+构建与运行 E2E：
+
 ```bash
-# Example: VS
-bash ms_pipeline/claude_agent/test_flow_claude.sh \
-  qwen-397b claude 0 1 1 vs \
-  ../get-molbench/outputs/auto/vs/molbench-vs-30-42.csv 1
+bash pipeline/e2e/run_e2e_pipeline.sh --questions E2E-Q01,E2E-Q02
 ```
-
-### 4) Evaluation entrypoint
-```bash
-python ms_pipeline/evaluate/run_eval_bench.py <RESULTS_DIR> --task vs
-# --task can be: vs | ac | pf (or omit to auto-infer)
-```
-
-## 📦 Output Snapshot
-Typical run outputs are written under:
-
-- `get-molbench/outputs/...` for generated datasets
-- `ms_pipeline/results/molbench_<task>_<provider>_run_<timestamp>/...` for rollouts and metrics
-
-Inside each run directory, you can expect:
-
-- `run_config.json`, `run_summary.jsonl`, `completion_report.json`
-- `preds/molbench_<task>/...`
-- `trajectories/trajectory_level.jsonl`, `step_level.jsonl`, `accepted.jsonl`, `rejected.jsonl`
-- `bench_scores.json`
-
-<!-- ## 📄 License
-This repository currently does **not** include a `LICENSE` file in the root. Add one before public distribution if you need explicit open-source licensing terms.
-
-## 📚 Citation
-If you use this repository in research, please cite it as software:
-
-```bibtex
-@software{mol_pipeline,
-  title   = {Mol-Pipeline: Unified MolBench Dataset, Agent, and Evaluation Workflow},
-  author  = {Mol-Pipeline Contributors},
-  year    = {2026},
-  url     = {<YOUR_REPO_URL>}
-}
-``` -->
-
-<p align="center">
-  Xiangyu Sun • <a href="https://github.com/mu9enn">Repository</a> • <a href="#top">Back to top ↑</a>
-</p>

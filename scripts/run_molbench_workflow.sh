@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 GET_DIR="$ROOT_DIR/get-molbench"
-MS_DIR="$ROOT_DIR/ms_pipeline"
+PIPELINE_DIR="$ROOT_DIR/pipeline"
 ENV_FILE="$ROOT_DIR/.env"
 
 SEED=""
@@ -18,7 +18,7 @@ Usage:
 Description:
   1) Generate AC/VS/PF datasets under get-molbench/outputs/auto/{ac,vs,pf}
   2) Merge PF v0/v1 to molbench-pf-<N>-<SEED>.csv
-  3) Send three ms_pipeline jobs via tmux send-keys:
+  3) Send three pipeline jobs via tmux send-keys:
      - vs_pipe-2:0 (task=vs)
      - ac_pipe-4:0 (task=ac)
      - pf_pipe-5:0 (task=pf)
@@ -179,9 +179,9 @@ else
     "$MOLCLAW_VS_MCP_SERVER_NAME" "$MOLCLAW_VS_MCP_URL" "$MOLCLAW_VS_MCP_AUTH_HEADER" "$MOLCLAW_VS_MCP_AUTH" \
     "$MOLCLAW_SCP_MCP_SERVER_NAME" "$MOLCLAW_SCP_MCP_URL" "$MOLCLAW_SCP_MCP_AUTH_HEADER" "$MOLCLAW_SCP_MCP_AUTH" "$PYTHON_BIN"
 fi
-VS_CMD="$ENV_BOOTSTRAP bash $MS_DIR/claude_agent/test_flow_claude.sh qwen-397b claude 0 1 1 vs $VS_CSV 1"
-AC_CMD="$ENV_BOOTSTRAP bash $MS_DIR/claude_agent/test_flow_claude.sh qwen-397b claude 0 1 1 ac $AC_CSV 1"
-PF_CMD="$ENV_BOOTSTRAP bash $MS_DIR/claude_agent/test_flow_claude.sh qwen-397b claude 0 1 1 pf $PF_CSV 1"
+VS_CMD="$ENV_BOOTSTRAP bash $PIPELINE_DIR/claude_agent/test_flow_claude.sh qwen-397b claude 0 1 1 vs $VS_CSV 1"
+AC_CMD="$ENV_BOOTSTRAP bash $PIPELINE_DIR/claude_agent/test_flow_claude.sh qwen-397b claude 0 1 1 ac $AC_CSV 1"
+PF_CMD="$ENV_BOOTSTRAP bash $PIPELINE_DIR/claude_agent/test_flow_claude.sh qwen-397b claude 0 1 1 pf $PF_CSV 1"
 
 tmux send-keys -t vs_pipe-2:0 "$VS_CMD" C-m
 tmux send-keys -t ac_pipe-4:0 "$AC_CMD" C-m

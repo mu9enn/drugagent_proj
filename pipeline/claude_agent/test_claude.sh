@@ -7,7 +7,7 @@ cd "$REPO_DIR"
 
 PROVIDER="${CC_SWITCH_PROVIDER:-qwen-397b}"
 CLAUDE_BIN="${CLAUDE_BIN:-claude}"
-SKILLS_ROOT="$REPO_DIR/skills"
+SKILLS_ROOT="$REPO_DIR/skills/skills_vs"
 SYSTEM_PROMPT_FILE="$SKILLS_ROOT/system_prompt_result.md"
 LAUNCH_SCRIPT="$REPO_DIR/claude_agent/launch_claude.sh"
 WORKDIR="$REPO_DIR/results/test_workdir"

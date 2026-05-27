@@ -2,11 +2,12 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+PIPELINE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+REPO_DIR="$(cd "$PIPELINE_DIR/.." && pwd)"
 cd "$REPO_DIR"
 
 # Auto-load shared env file from the merged workspace root if present.
-ROOT_ENV_FILE="${ROOT_ENV_FILE:-$REPO_DIR/../.env}"
+ROOT_ENV_FILE="${ROOT_ENV_FILE:-$REPO_DIR/.env}"
 if [[ -f "$ROOT_ENV_FILE" ]]; then
   set -a
   # shellcheck disable=SC1090
@@ -46,7 +47,6 @@ LIMIT=0
 NUM_ROLLOUTS=1
 ROLLOUT_SEED_BASE=0
 PARALLEL_ROLLOUTS=1
-EXPORT_TRAJECTORIES=1
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -84,8 +84,6 @@ while [[ $# -gt 0 ]]; do
       ROLLOUT_SEED_BASE="$2"; shift 2 ;;
     --parallel-rollouts)
       PARALLEL_ROLLOUTS="$2"; shift 2 ;;
-    --no-export-trajectories)
-      EXPORT_TRAJECTORIES=0; shift ;;
     --skip-provider-switch)
       SKIP_PROVIDER_SWITCH=1; shift ;;
     --skip-mcp-verify)
@@ -101,7 +99,7 @@ Modes:
 
   2) Dataset mode:
      --run-dataset
-     [--task vs|ac|pf]
+     [--task vs|ac|pf|e2e|kg]
      [--dataset-csv PATH]
      [--results-root PATH]
      [--start-row N] [--end-row N] [--limit N]
@@ -115,7 +113,6 @@ Shared options:
   --claude-bin PATH_OR_NAME     (default: claude)
   --skip-provider-switch
   --skip-mcp-verify
-  --no-export-trajectories      (dataset mode only)
 EOF
       exit 0 ;;
     *)
@@ -125,28 +122,48 @@ EOF
 done
 
 TASK="$(echo "$TASK" | tr '[:upper:]' '[:lower:]')"
-if [[ "$TASK" != "vs" && "$TASK" != "ac" && "$TASK" != "pf" ]]; then
+if [[ "$TASK" != "vs" && "$TASK" != "ac" && "$TASK" != "pf" && "$TASK" != "e2e" && "$TASK" != "kg" ]]; then
   echo "[error] unsupported --task: $TASK" >&2
   exit 1
 fi
 
 # Task-aware defaults
 if [[ "$TASK" == "vs" ]]; then
-  : "${SKILLS_ROOT:=skills}"
+  : "${SKILLS_ROOT:=skills/skills_vs}"
   : "${SYSTEM_PROMPT_FILE:=system_prompt_result.md}"
   : "${DATASET_CSV:=$REPO_DIR/molbench/molbench-vs-900.csv}"
   : "${MCP_SERVER_NAME:=${MOLCLAW_VS_MCP_SERVER_NAME:-molclaw-vs}}"
   : "${MCP_SERVER_URL:=${MOLCLAW_VS_MCP_URL:-}}"
   : "${MCP_SERVER_AUTH:=${MOLCLAW_VS_MCP_AUTH:-}}"
   : "${MCP_SERVER_AUTH_HEADER:=${MOLCLAW_VS_MCP_AUTH_HEADER:-Authorization}}"
+elif [[ "$TASK" == "e2e" ]]; then
+  : "${SKILLS_ROOT:=skills/skills_full}"
+  : "${SYSTEM_PROMPT_FILE:=system_prompt_FULL.md}"
+  : "${DATASET_CSV:=$REPO_DIR/molbench/MolBench-E2E/e2e_dataset.csv}"
+  : "${MCP_SERVER_NAME:=${MOLCLAW_SCP_MCP_SERVER_NAME:-molclaw-scp}}"
+  : "${MCP_SERVER_URL:=${MOLCLAW_SCP_MCP_URL:-}}"
+  : "${MCP_SERVER_AUTH:=${MOLCLAW_SCP_MCP_AUTH:-}}"
+  : "${MCP_SERVER_AUTH_HEADER:=${MOLCLAW_SCP_MCP_AUTH_HEADER:-SCP-HUB-API-KEY}}"
+elif [[ "$TASK" == "kg" ]]; then
+  : "${SKILLS_ROOT:=skills/skills_full}"
+  : "${SYSTEM_PROMPT_FILE:=system_prompt_FULL.md}"
+  : "${MCP_SERVER_NAME:=${MOLCLAW_SCP_MCP_SERVER_NAME:-molclaw-scp}}"
+  : "${MCP_SERVER_URL:=${MOLCLAW_SCP_MCP_URL:-}}"
+  : "${MCP_SERVER_AUTH:=${MOLCLAW_SCP_MCP_AUTH:-}}"
+  : "${MCP_SERVER_AUTH_HEADER:=${MOLCLAW_SCP_MCP_AUTH_HEADER:-SCP-HUB-API-KEY}}"
 else
-  : "${SKILLS_ROOT:=skills_full}"
+  : "${SKILLS_ROOT:=skills/skills_full}"
   : "${SYSTEM_PROMPT_FILE:=system_prompt_FULL.md}"
   : "${DATASET_CSV:=$REPO_DIR/molbench/molbench-${TASK}-900.csv}"
   : "${MCP_SERVER_NAME:=${MOLCLAW_SCP_MCP_SERVER_NAME:-molclaw-scp}}"
   : "${MCP_SERVER_URL:=${MOLCLAW_SCP_MCP_URL:-}}"
   : "${MCP_SERVER_AUTH:=${MOLCLAW_SCP_MCP_AUTH:-}}"
   : "${MCP_SERVER_AUTH_HEADER:=${MOLCLAW_SCP_MCP_AUTH_HEADER:-SCP-HUB-API-KEY}}"
+fi
+
+if [[ "$TASK" == "kg" && -z "${DATASET_CSV:-}" ]]; then
+  echo "[error] task=kg requires explicit --dataset-csv path" >&2
+  exit 1
 fi
 
 if [[ -z "$MCP_SERVER_URL" ]]; then
@@ -161,12 +178,12 @@ EOF
   exit 1
 fi
 
-if [[ "$SKIP_PROVIDER_SWITCH" -eq 0 ]]; then
-  if ! command -v cc-switch >/dev/null 2>&1; then
-    echo "[error] cc-switch not found in PATH, but is required for provider switch. Either install cc-switch or use --skip-provider-switch flag." >&2
-    exit 1
-  fi
-fi
+# if [[ "$SKIP_PROVIDER_SWITCH" -eq 0 ]]; then
+#   if ! command -v cc-switch >/dev/null 2>&1; then
+#     echo "[error] cc-switch not found in PATH, but is required for provider switch. Either install cc-switch or use --skip-provider-switch flag." >&2
+#     exit 1
+#   fi
+# fi
 
 MCP_CONFIG_FILE="$(mktemp -t "claude_mcp_${TASK}.XXXXXX.json")"
 cleanup_mcp_config() {
@@ -198,8 +215,9 @@ PY
 }
 
 if [[ "$SKIP_PROVIDER_SWITCH" -eq 0 ]]; then
-  cc-switch provider switch "$PROVIDER"
-  echo "[run] provider switched via cc-switch: ${PROVIDER}"
+  # cc-switch provider switch "$PROVIDER"
+  # echo "[run] provider switched via cc-switch: ${PROVIDER}"
+  echo "[run] provider switch step disabled in script (expect external cc-switch before run)"
 fi
 
 write_task_mcp_config
@@ -214,7 +232,7 @@ fi
 echo "[route] task=${TASK} skills_root=${SKILLS_ROOT} system_prompt=${SYSTEM_PROMPT_FILE} mcp_server=${MCP_SERVER_NAME} mcp_scope=${MCP_SERVER_SCOPE}"
 
 if [[ "$RUN_DATASET" -eq 1 ]]; then
-  RUNNER="$REPO_DIR/claude_agent/run_claude.py"
+  RUNNER="$PIPELINE_DIR/claude_agent/run_claude.py"
   if [[ ! -f "$RUNNER" ]]; then
     echo "[error] run_claude.py not found: $RUNNER" >&2
     exit 1
@@ -239,10 +257,6 @@ if [[ "$RUN_DATASET" -eq 1 ]]; then
     --strict-mcp-config
     --skip-provider-switch
   )
-  if [[ "$EXPORT_TRAJECTORIES" -eq 0 ]]; then
-    cmd+=(--no-export-trajectories)
-  fi
-
   "${cmd[@]}"
   exit $?
 fi

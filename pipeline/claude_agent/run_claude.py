@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run MolBench tasks (VS/AC/PF) with Claude CLI + cc-switch."""
+"""Run MolBench tasks (VS/AC/PF/E2E/KG) with Claude CLI + cc-switch."""
 from __future__ import annotations
 
 import argparse
@@ -81,13 +81,15 @@ def _copy_tree(src: Path, dst: Path) -> None:
 
 
 def _switch_provider(provider: str) -> None:
-    cmd = ["cc-switch", "provider", "switch", provider]
-    proc = subprocess.run(cmd, text=True, capture_output=True, check=False)
-    if proc.returncode != 0:
-        raise RuntimeError(
-            "cc-switch failed: "
-            f"cmd={' '.join(cmd)} stdout={proc.stdout.strip()} stderr={proc.stderr.strip()}"
-        )
+    # cmd = ["cc-switch", "provider", "switch", provider]
+    # proc = subprocess.run(cmd, text=True, capture_output=True, check=False)
+    # if proc.returncode != 0:
+    #     raise RuntimeError(
+    #         "cc-switch failed: "
+    #         f"cmd={' '.join(cmd)} stdout={proc.stdout.strip()} stderr={proc.stderr.strip()}"
+    #     )
+    # Provider switching is now expected to be done externally before execution.
+    return
 
 
 def _extract_answer_block(text: str) -> str:
@@ -352,6 +354,10 @@ def _parse_answer_by_task(task: str, answer_block: str) -> tuple[list[str], str 
         parsed, err = _try_parse_answer_array(answer_block)
         return parsed or [], err
 
+    if task in {"e2e", "kg"}:
+        text = (answer_block or "").strip()
+        return ([text] if text else []), None
+
     parsed = _filter_smiles_like(_parse_lines_or_json(answer_block), keep_original_if_empty=False)
     if task == "ac":
         if not parsed:
@@ -417,6 +423,20 @@ def _parse_answer_with_fallback(
 ) -> tuple[list[str], str | None, str, list[dict[str, Any]], int]:
     attempts: list[dict[str, Any]] = []
     raw_answer_len = len((answer_block or "").strip())
+
+    if task in {"e2e", "kg"}:
+        for source, text in (
+            ("answer_tag", answer_block),
+            ("result_text", result_text),
+            ("session_text", session_text),
+            ("transcript_text", raw_transcript),
+        ):
+            s = (text or "").strip()
+            attempts.append({"source": source, "error": None, "count": 1 if s else 0})
+            if s:
+                return [s], None, source, attempts, raw_answer_len
+        return [], None, "none", attempts, raw_answer_len
+
     first_err: str | None = None
     api_err_text = (result_text or "").strip() or (session_text or "").strip() or (answer_block or "").strip()
     if "API Error:" in api_err_text:
@@ -500,6 +520,38 @@ def _load_samples(dataset_csv: Path, task: str) -> list[Sample]:
                 )
                 continue
 
+            if task == "e2e":
+                question_text = (row.get("question") or row.get("prompt") or "").strip()
+                raw_q = (row.get("raw_question_json") or "").strip()
+                samples.append(
+                    Sample(
+                        row_number=row_no,
+                        dataset_index=str(row.get("question_id") or row.get("index") or row_no),
+                        question_text=question_text,
+                        raw_question_json=raw_q,
+                        candidates=[],
+                        answer=_parse_pf_gt((row.get("answer") or "").strip()),
+                        n_active=0,
+                    )
+                )
+                continue
+
+            if task == "kg":
+                question_text = (row.get("question") or row.get("prompt") or "").strip()
+                raw_q = (row.get("raw_question_json") or "").strip()
+                samples.append(
+                    Sample(
+                        row_number=row_no,
+                        dataset_index=str(row.get("question_id") or row.get("index") or row_no),
+                        question_text=question_text,
+                        raw_question_json=raw_q,
+                        candidates=[],
+                        answer=_parse_pf_gt((row.get("answer") or "").strip()),
+                        n_active=0,
+                    )
+                )
+                continue
+
             # PF
             question_text = (row.get("prompt") or row.get("question") or "").strip()
             gt = _parse_pf_gt((row.get("answer") or "").strip())
@@ -523,6 +575,8 @@ def _build_prompt(system_prompt: str, question_text: str, task: str) -> str:
         "vs": "Question payload (MolBench-VS):",
         "ac": "Question payload (MolBench-AC):",
         "pf": "Question payload (MolBench-PF):",
+        "e2e": "Question payload (MolBench-E2E):",
+        "kg": "Question payload (KG-Sampled Task):",
     }
     return (
         system_prompt.strip()
@@ -539,6 +593,7 @@ def _run_one(
     prompt: str,
     workdir: Path,
     out_file: Path,
+    timeout_sec: int | None = TASK_TIMEOUT_SEC,
     mcp_config_file: Path | None = None,
     strict_mcp_config: bool = False,
 ) -> dict[str, Any]:
@@ -569,13 +624,13 @@ def _run_one(
                 text=True,
                 stdout=f,
                 stderr=subprocess.STDOUT,
-                timeout=TASK_TIMEOUT_SEC,
+                timeout=timeout_sec,
                 check=False,
             )
             return_code = int(proc.returncode)
             timed_out = False
         except subprocess.TimeoutExpired:
-            f.write(f"[runner-error] task timed out after {TASK_TIMEOUT_SEC} seconds\n")
+            f.write(f"[runner-error] task timed out after {timeout_sec} seconds\n")
             return_code = 124
             timed_out = True
         except FileNotFoundError:
@@ -587,7 +642,7 @@ def _run_one(
         "command": cmd,
         "return_code": return_code,
         "timed_out": timed_out,
-        "timeout_sec": TASK_TIMEOUT_SEC,
+        "timeout_sec": timeout_sec,
         "duration_sec": round(sec, 3),
     }
 
@@ -625,6 +680,17 @@ def _run_single_rollout(
         "answer": sample.answer,
         "n_active": sample.n_active,
     }
+    if task == "kg":
+        kg_task_spec: dict[str, Any] = {}
+        raw_spec = (sample.raw_question_json or "").strip()
+        if raw_spec:
+            try:
+                parsed_spec = json.loads(raw_spec)
+            except json.JSONDecodeError:
+                parsed_spec = {}
+            if isinstance(parsed_spec, dict):
+                kg_task_spec = parsed_spec
+        question_payload["kg_task_spec"] = kg_task_spec
     (workdir / "question.json").write_text(
         json.dumps(question_payload, ensure_ascii=False, indent=2),
         encoding="utf-8",
@@ -632,11 +698,13 @@ def _run_single_rollout(
     (workdir / "prompt.txt").write_text(prompt, encoding="utf-8")
 
     session_path = workdir / "complete_session.jsonl"
+    timeout_sec = None if task in {"e2e", "kg"} else TASK_TIMEOUT_SEC
     cli_meta = _run_one(
         claude_bin=claude_bin,
         prompt=prompt,
         workdir=workdir,
         out_file=session_path,
+        timeout_sec=timeout_sec,
         mcp_config_file=mcp_config_file,
         strict_mcp_config=strict_mcp_config,
     )
@@ -647,9 +715,9 @@ def _run_single_rollout(
     raw_transcript = session_path.read_text(encoding="utf-8", errors="ignore") if session_path.exists() else ""
     if not answer_block:
         answer_block = _extract_answer_block(raw_transcript)
-    if not answer_block and task in {"ac", "pf"}:
+    if not answer_block and task in {"ac", "pf", "e2e", "kg"}:
         # AC/PF uses skills_full prompt that may omit XML tags; fallback to final result text.
-        answer_block = _extract_code_block_text(result_text) or result_text
+        answer_block = _extract_code_block_text(result_text) or result_text or session_text
 
     parsed_answer, parse_error, parse_source, parse_attempts, raw_answer_len = _parse_answer_with_fallback(
         task=task,
@@ -658,6 +726,9 @@ def _run_single_rollout(
         session_text=session_text,
         raw_transcript=raw_transcript,
     )
+    if task in {"e2e", "kg"}:
+        # E2E keeps raw final output and does not enforce parse-error gating.
+        parse_error = None
     if cli_meta.get("timed_out"):
         parsed_answer = []
         parse_error = f"timeout after {TASK_TIMEOUT_SEC} seconds"
@@ -717,23 +788,6 @@ def _run_single_rollout(
         parse_attempts=parse_attempts,
         raw_answer_len=raw_answer_len,
     )
-
-
-def _run_trajectory_exporter(repo_root: Path, run_dir: Path, task: str) -> tuple[bool, str]:
-    exporter = repo_root / "claude_agent" / "trajectory_exporter.py"
-    if not exporter.is_file():
-        return False, f"trajectory exporter not found: {exporter}"
-    proc = subprocess.run(
-        ["python", str(exporter), str(run_dir), "--task", task],
-        text=True,
-        capture_output=True,
-        check=False,
-        cwd=str(repo_root),
-    )
-    if proc.returncode != 0:
-        msg = proc.stderr.strip() or proc.stdout.strip() or f"return code {proc.returncode}"
-        return False, msg
-    return True, proc.stdout.strip()
 
 
 def _safe_read_json(path: Path) -> dict[str, Any]:
@@ -846,8 +900,8 @@ def _check_run_completeness(run_dir: Path, num_rollouts: int, task: str) -> dict
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run MolBench tasks with Claude CLI and stream-json logs.")
-    parser.add_argument("--task", choices=["vs", "ac", "pf"], default="vs")
-    parser.add_argument("--dataset-csv", default="molbench-vs/MolBench-vs-25.csv")
+    parser.add_argument("--task", choices=["vs", "ac", "pf", "e2e", "kg"], default="vs")
+    parser.add_argument("--dataset-csv", default="molbench/molbench-vs-900.csv")
     parser.add_argument("--skills-root", default="skills")
     parser.add_argument("--results-root", default="results")
     parser.add_argument("--system-prompt-file", default="", help="Optional prompt filename under skills root")
@@ -862,8 +916,6 @@ def main() -> None:
     parser.add_argument("--mcp-config-file", default="", help="Optional MCP config JSON path passed to Claude CLI")
     parser.add_argument("--strict-mcp-config", action="store_true", help="Use Claude --strict-mcp-config")
     parser.add_argument("--skip-provider-switch", action="store_true")
-    parser.add_argument("--export-trajectories", action="store_true", default=True)
-    parser.add_argument("--no-export-trajectories", dest="export_trajectories", action="store_false")
     args = parser.parse_args()
 
     if args.start_row < 1:
@@ -873,7 +925,7 @@ def main() -> None:
     if args.parallel_rollouts < 1:
         raise ValueError("--parallel-rollouts must be >= 1")
 
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = Path(__file__).resolve().parents[2]
     dataset_csv = Path(args.dataset_csv)
     if not dataset_csv.is_absolute():
         dataset_csv = (repo_root / dataset_csv).resolve()
@@ -923,8 +975,9 @@ def main() -> None:
         return
 
     if not args.skip_provider_switch:
-        _switch_provider(args.provider)
-        print(f"[run] provider switched via cc-switch: {args.provider}", flush=True)
+        # _switch_provider(args.provider)
+        # print(f"[run] provider switched via cc-switch: {args.provider}", flush=True)
+        print("[run] provider switch step disabled in script (expect external cc-switch before run)", flush=True)
     else:
         print("[run] skip provider switch", flush=True)
 
@@ -1113,13 +1166,6 @@ def main() -> None:
     if not completion_report.get("completeness_ok"):
         print(f"[error] run completeness check failed: {run_dir / 'completion_report.json'}")
         raise RuntimeError("run completeness check failed")
-
-    if args.export_trajectories:
-        ok, msg = _run_trajectory_exporter(repo_root, run_dir, args.task)
-        if ok:
-            print(f"[run] trajectory export completed: {msg}")
-        else:
-            print(f"[warn] trajectory export failed: {msg}")
 
     print(f"RESULTS_DIR={run_dir}")
 

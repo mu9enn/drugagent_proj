@@ -23,8 +23,12 @@ venv/
 # Large data artifacts
 get-molbench/data/
 get-molbench/outputs/
-ms_pipeline/results/
-ms_pipeline/molbench/
+results/
+molbench/
+pipeline/e2e/runs/
+pipeline/kg/runs/
+pipeline/kg/data/
+exports/
 
 # Other local runtime folders
 tmp/

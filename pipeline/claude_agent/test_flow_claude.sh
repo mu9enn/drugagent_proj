@@ -4,7 +4,8 @@ set -euo pipefail
 export LC_ALL=C
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+PIPELINE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+REPO_DIR="$(cd "$PIPELINE_DIR/.." && pwd)"
 cd "$REPO_DIR"
 
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
@@ -19,7 +20,7 @@ Defaults:
   num_rollouts=1
   parallel_rollouts=1
   task=vs
-  dataset_csv=<repo>/molbench/molbench-<task>-900.csv
+  dataset_csv=<repo>/molbench/molbench-<task>-900.csv (for e2e: <repo>/molbench/MolBench-E2E/e2e_dataset.csv; for kg: must be explicit)
   skip_provider_switch=0
 EOF
   exit 0
@@ -35,26 +36,33 @@ DATASET_CSV="${7:-}"
 SKIP_PROVIDER_SWITCH="${8:-0}"
 
 TASK="$(echo "$TASK" | tr '[:upper:]' '[:lower:]')"
-if [[ "$TASK" != "vs" && "$TASK" != "ac" && "$TASK" != "pf" ]]; then
+if [[ "$TASK" != "vs" && "$TASK" != "ac" && "$TASK" != "pf" && "$TASK" != "e2e" && "$TASK" != "kg" ]]; then
   echo "[error] unsupported task: $TASK" >&2
   exit 1
 fi
 
 if [[ -z "$DATASET_CSV" ]]; then
-  DATASET_CSV="$REPO_DIR/molbench/molbench-${TASK}-900.csv"
+  if [[ "$TASK" == "e2e" ]]; then
+    DATASET_CSV="$REPO_DIR/molbench/MolBench-E2E/e2e_dataset.csv"
+  elif [[ "$TASK" == "kg" ]]; then
+    echo "[error] task=kg requires explicit dataset_csv argument" >&2
+    exit 1
+  else
+    DATASET_CSV="$REPO_DIR/molbench/molbench-${TASK}-900.csv"
+  fi
 fi
 
 if [[ "$TASK" == "vs" ]]; then
-  SKILLS_ROOT="$REPO_DIR/skills"
+  SKILLS_ROOT="$REPO_DIR/skills/skills_vs"
   SYSTEM_PROMPT_FILE="$SKILLS_ROOT/system_prompt_result.md"
 else
-  SKILLS_ROOT="$REPO_DIR/skills_full"
+  SKILLS_ROOT="$REPO_DIR/skills/skills_full"
   SYSTEM_PROMPT_FILE="$SKILLS_ROOT/system_prompt_FULL.md"
 fi
 
 RESULTS_ROOT="$REPO_DIR/results"
-LAUNCH_SCRIPT="$REPO_DIR/claude_agent/launch_claude.sh"
-EVAL_SCRIPT="$REPO_DIR/evaluate/run_eval_bench.py"
+LAUNCH_SCRIPT="$PIPELINE_DIR/claude_agent/launch_claude.sh"
+EVAL_SCRIPT="$PIPELINE_DIR/evaluate/run_eval_bench.py"
 PYTHON_BIN="${PYTHON_BIN:-python}"
 
 if [[ ! -f "$DATASET_CSV" ]]; then
@@ -121,6 +129,10 @@ if [[ ! -d "$RESULTS_DIR" ]]; then
   exit 1
 fi
 
-"$PYTHON_BIN" "$EVAL_SCRIPT" "$RESULTS_DIR" --task "$TASK"
+if [[ "$TASK" == "e2e" || "$TASK" == "kg" ]]; then
+  echo "[skip] evaluation skipped for $TASK task"
+else
+  "$PYTHON_BIN" "$EVAL_SCRIPT" "$RESULTS_DIR" --task "$TASK"
+fi
 
 echo "[done] full pipeline completed (task=$TASK)"

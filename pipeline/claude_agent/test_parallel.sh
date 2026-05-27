@@ -2,7 +2,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+PIPELINE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+REPO_DIR="$(cd "$PIPELINE_DIR/.." && pwd)"
 cd "$REPO_DIR"
 
 PROVIDER="${1:-qwen-397b}"
@@ -63,7 +64,7 @@ if (( $# > 6 )); then
   done
 fi
 
-FLOW="$REPO_DIR/claude_agent/test_flow_claude.sh"
+FLOW="$PIPELINE_DIR/claude_agent/test_flow_claude.sh"
 LOG_DIR="$REPO_DIR/results/parallel_logs/$(date +%Y%m%d_%H%M%S)"
 mkdir -p "$LOG_DIR"
 
@@ -73,16 +74,17 @@ if ! python -c "from rdkit import Chem" >/dev/null 2>&1; then
   exit 1
 fi
 
-if ! command -v cc-switch >/dev/null 2>&1; then
-  echo "[error] cc-switch not found in PATH, but is required for provider switch." >&2
-  exit 1
-fi
-
-if ! cc-switch provider switch "$PROVIDER" >/dev/null; then
-  echo "[error] failed to switch provider via cc-switch: $PROVIDER" >&2
-  exit 1
-fi
-echo "[run] provider switched once via cc-switch: $PROVIDER"
+# if ! command -v cc-switch >/dev/null 2>&1; then
+#   echo "[error] cc-switch not found in PATH, but is required for provider switch." >&2
+#   exit 1
+# fi
+#
+# if ! cc-switch provider switch "$PROVIDER" >/dev/null; then
+#   echo "[error] failed to switch provider via cc-switch: $PROVIDER" >&2
+#   exit 1
+# fi
+# echo "[run] provider switched once via cc-switch: $PROVIDER"
+echo "[run] provider switch step disabled in script (expect external cc-switch before run)"
 
 declare -A PIDS
 declare -A LOGS

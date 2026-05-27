@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Export MolBench Claude session artifacts into trajectory datasets (VS/AC/PF)."""
+"""Export MolBench Claude session artifacts into trajectory datasets (VS/AC/PF/E2E/KG)."""
 from __future__ import annotations
 
 import argparse
@@ -13,7 +13,7 @@ from typing import Any
 
 ROLLOUT_RE = re.compile(r"rollout(\d+)$")
 AFFINITY_RE = re.compile(r"(-?\d+(?:\.\d+)?)\s*(?:kcal/?mol)", re.IGNORECASE)
-TASK_CHOICES = {"vs", "ac", "pf"}
+TASK_CHOICES = {"vs", "ac", "pf", "e2e", "kg"}
 
 
 @dataclass
@@ -251,7 +251,7 @@ def _build_artifact_audit(events: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def _build_step_records(events: list[dict[str, Any]], task_id: str, accepted: bool, reward_outcome: float | None) -> tuple[list[dict[str, Any]], Counter[str]]:
+def _build_step_records(events: list[dict[str, Any]], task_id: str, accepted: bool) -> tuple[list[dict[str, Any]], Counter[str]]:
     steps: list[dict[str, Any]] = []
     tool_use_name_by_id: dict[str, str] = {}
     tool_counter: Counter[str] = Counter()
@@ -288,7 +288,6 @@ def _build_step_records(events: list[dict[str, Any]], task_id: str, accepted: bo
                             "assistant_text": None,
                             "observation": None,
                             "accepted": accepted,
-                            "reward": 0.0,
                             "done": False,
                         }
                     )
@@ -309,7 +308,6 @@ def _build_step_records(events: list[dict[str, Any]], task_id: str, accepted: bo
                                 "assistant_text": text,
                                 "observation": None,
                                 "accepted": accepted,
-                                "reward": 0.0,
                                 "done": False,
                             }
                         )
@@ -341,14 +339,12 @@ def _build_step_records(events: list[dict[str, Any]], task_id: str, accepted: bo
                         "observation": item.get("content"),
                         "tool_result_error": bool(item.get("is_error")),
                         "accepted": accepted,
-                        "reward": 0.0,
                         "done": False,
                     }
                 )
 
     if steps:
         steps[-1]["done"] = True
-        steps[-1]["reward"] = float(reward_outcome) if reward_outcome is not None else 0.0
 
     return steps, tool_counter
 
@@ -386,7 +382,7 @@ def _infer_task(results_dir: Path, explicit_task: str | None = None) -> str:
     if cfg_task in TASK_CHOICES:
         return cfg_task
 
-    for t in ("vs", "ac", "pf"):
+    for t in ("vs", "ac", "pf", "e2e", "kg"):
         pred_file = results_dir / "preds" / f"molbench_{t}" / f"molbench_{t}.json"
         if pred_file.is_file():
             return t
@@ -444,6 +440,9 @@ def export_results_dir(results_dir: Path, task: str | None = None) -> dict[str, 
 
         parsed = _safe_load_json(s.sample_dir / "parsed_answer.json")
         run_meta = _safe_load_json(s.sample_dir / "run_meta.json")
+        session_path = s.sample_dir / "complete_session.jsonl"
+        timed_out_value = bool(parsed.get("timed_out", False) or run_meta.get("timed_out", False))
+        return_code_value = run_meta.get("return_code")
 
         task_for_sample = str(question.get("task") or run_meta.get("task") or task_name).strip().lower()
         if task_for_sample not in TASK_CHOICES:
@@ -453,117 +452,198 @@ def export_results_dir(results_dir: Path, task: str | None = None) -> dict[str, 
         gt_answers = _as_str_list(question.get("answer"))
         pred_answers = _as_str_list(parsed.get("answer"))
 
-        parse_error = parsed.get("parse_error")
-        reject_reasons: list[str] = []
-        task_reject_checks: dict[str, Any] = {
-            "parse_error": bool(parse_error),
-            "ground_truth_size": len(gt_answers),
-            "prediction_size": len(pred_answers),
-        }
+        kg_metadata: dict[str, Any] | None = None
 
-        if parse_error:
-            reject_reasons.append("parse_error")
-
-        if not rdkit_available:
+        if task_for_sample == "e2e":
+            parse_error = None
+            if not pred_answers:
+                raw = parsed.get("answer_block")
+                if isinstance(raw, str) and raw.strip():
+                    pred_answers = [raw.strip()]
+            has_session = session_path.is_file()
+            rc_ok = return_code_value == 0
+            reject_reasons = []
+            if not rc_ok:
+                reject_reasons.append(f"runner_nonzero_rc:{return_code_value}")
+            if timed_out_value:
+                reject_reasons.append("timeout")
+            if not has_session:
+                reject_reasons.append("missing_session")
+            task_reject_checks = {
+                "return_code": return_code_value,
+                "timed_out": timed_out_value,
+                "has_complete_session": has_session,
+                "ground_truth_size": len(gt_answers),
+                "prediction_size": len(pred_answers),
+            }
+            task_metrics = {}
             cand_canon = [x.strip() for x in candidates if x.strip()]
             gt_canon = [x.strip() for x in gt_answers if x.strip()]
             pred_canon = [x.strip() for x in pred_answers if x.strip()]
-            cand_err: list[dict[str, Any]] = []
-            gt_err: list[dict[str, Any]] = []
-            pred_err: list[dict[str, Any]] = []
+            accepted = len(reject_reasons) == 0
+        elif task_for_sample == "kg":
+            parse_error = parsed.get("parse_error")
+            if not pred_answers:
+                raw = parsed.get("answer_block")
+                if isinstance(raw, str) and raw.strip():
+                    pred_answers = [raw.strip()]
+
+            has_session = session_path.is_file()
+            rc_ok = return_code_value == 0
+            accepted = bool(rc_ok and not timed_out_value and has_session)
+
+            reject_reasons = []
+            if not rc_ok:
+                reject_reasons.append(f"runner_nonzero_rc:{return_code_value}")
+            if timed_out_value:
+                reject_reasons.append("timeout")
+            if not has_session:
+                reject_reasons.append("missing_session")
+
+            task_reject_checks = {
+                "return_code": return_code_value,
+                "timed_out": timed_out_value,
+                "has_complete_session": has_session,
+                "prediction_size": len(pred_answers),
+                "ground_truth_size": len(gt_answers),
+            }
+            task_metrics = {}
+            cand_canon = [x.strip() for x in candidates if x.strip()]
+            gt_canon = [x.strip() for x in gt_answers if x.strip()]
+            pred_canon = [x.strip() for x in pred_answers if x.strip()]
+
+            kg_task_spec = question.get("kg_task_spec") if isinstance(question.get("kg_task_spec"), dict) else {}
+            if not kg_task_spec:
+                raw_q = question.get("raw_question_json")
+                if isinstance(raw_q, str) and raw_q.strip():
+                    try:
+                        tmp = json.loads(raw_q)
+                    except Exception:
+                        tmp = {}
+                    if isinstance(tmp, dict):
+                        kg_task_spec = tmp
+
+            kg_source = kg_task_spec.get("source") if isinstance(kg_task_spec.get("source"), dict) else {}
+            kg_toolchain = kg_task_spec.get("toolchain") if isinstance(kg_task_spec.get("toolchain"), dict) else {}
+            expected_tools = kg_toolchain.get("tools") if isinstance(kg_toolchain.get("tools"), list) else question.get("toolchain_nodes")
+            if not isinstance(expected_tools, list):
+                expected_tools = []
+            kg_metadata = {
+                "source": "molclaw_kg",
+                "kg_run_id": kg_source.get("kg_run_id"),
+                "kg_task_id": kg_task_spec.get("task_id"),
+                "expected_toolchain": expected_tools,
+                "expected_trajectory_available": bool(kg_task_spec.get("expected_trajectory")),
+            }
         else:
-            cand_canon, cand_err = _canonicalize_list(candidates, Chem)
-            gt_canon, gt_err = _canonicalize_list(gt_answers, Chem)
-            pred_canon, pred_err = _canonicalize_list(pred_answers, Chem)
-
-        if gt_err:
-            reject_reasons.append(f"invalid_ground_truth_smiles:{len(gt_err)}")
-        if pred_err:
-            reject_reasons.append(f"invalid_prediction_smiles:{len(pred_err)}")
-        if task_for_sample == "vs" and cand_err:
-            reject_reasons.append(f"invalid_candidate_smiles:{len(cand_err)}")
-
-        task_metrics: dict[str, Any] = {}
-        reward_outcome: float | None = None
-
-        if task_for_sample == "vs":
-            expected_n = len(cand_canon)
-            if expected_n == 0:
-                reject_reasons.append("empty_candidate_set")
-            if len(pred_canon) != expected_n:
-                reject_reasons.append(f"length_mismatch:{len(pred_canon)}!={expected_n}")
-
-            unique_pred_n = len(set(pred_canon))
-            if unique_pred_n != len(pred_canon):
-                reject_reasons.append("duplicate_predictions")
-
-            cand_set = set(cand_canon)
-            outside_n = sum(1 for x in pred_canon if x not in cand_set)
-            if outside_n > 0:
-                reject_reasons.append(f"outside_candidate_set:{outside_n}")
-
-            top3 = _compute_hit_num(pred_canon, gt_canon, 3) if (gt_canon and pred_canon) else 0.0
-            top10 = _compute_hit_num(pred_canon, gt_canon, 10) if (gt_canon and pred_canon) else 0.0
-            reward_outcome = (2.0 * top3 + top10)
-
-            task_metrics = {
-                "top3_hit_num": float(top3),
-                "top10_hit_num": float(top10),
-                "reward_outcome": float(reward_outcome),
+            parse_error = parsed.get("parse_error")
+            reject_reasons: list[str] = []
+            task_reject_checks: dict[str, Any] = {
+                "parse_error": bool(parse_error),
+                "ground_truth_size": len(gt_answers),
+                "prediction_size": len(pred_answers),
             }
-            task_reject_checks.update(
-                {
-                    "expected_candidate_size": expected_n,
-                    "prediction_unique_size": unique_pred_n,
-                    "outside_candidate_count": outside_n,
+
+            if parse_error:
+                reject_reasons.append("parse_error")
+
+            if not rdkit_available:
+                cand_canon = [x.strip() for x in candidates if x.strip()]
+                gt_canon = [x.strip() for x in gt_answers if x.strip()]
+                pred_canon = [x.strip() for x in pred_answers if x.strip()]
+                cand_err: list[dict[str, Any]] = []
+                gt_err: list[dict[str, Any]] = []
+                pred_err: list[dict[str, Any]] = []
+            else:
+                cand_canon, cand_err = _canonicalize_list(candidates, Chem)
+                gt_canon, gt_err = _canonicalize_list(gt_answers, Chem)
+                pred_canon, pred_err = _canonicalize_list(pred_answers, Chem)
+
+            if gt_err:
+                reject_reasons.append(f"invalid_ground_truth_smiles:{len(gt_err)}")
+            if pred_err:
+                reject_reasons.append(f"invalid_prediction_smiles:{len(pred_err)}")
+            if task_for_sample == "vs" and cand_err:
+                reject_reasons.append(f"invalid_candidate_smiles:{len(cand_err)}")
+
+            task_metrics = {}
+
+            if task_for_sample == "vs":
+                expected_n = len(cand_canon)
+                if expected_n == 0:
+                    reject_reasons.append("empty_candidate_set")
+                if len(pred_canon) != expected_n:
+                    reject_reasons.append(f"length_mismatch:{len(pred_canon)}!={expected_n}")
+
+                unique_pred_n = len(set(pred_canon))
+                if unique_pred_n != len(pred_canon):
+                    reject_reasons.append("duplicate_predictions")
+
+                cand_set = set(cand_canon)
+                outside_n = sum(1 for x in pred_canon if x not in cand_set)
+                if outside_n > 0:
+                    reject_reasons.append(f"outside_candidate_set:{outside_n}")
+
+                top3 = _compute_hit_num(pred_canon, gt_canon, 3) if (gt_canon and pred_canon) else 0.0
+                top10 = _compute_hit_num(pred_canon, gt_canon, 10) if (gt_canon and pred_canon) else 0.0
+                task_metrics = {
+                    "top3_hit_num": float(top3),
+                    "top10_hit_num": float(top10),
                 }
-            )
+                task_reject_checks.update(
+                    {
+                        "expected_candidate_size": expected_n,
+                        "prediction_unique_size": unique_pred_n,
+                        "outside_candidate_count": outside_n,
+                    }
+                )
 
-        elif task_for_sample == "ac":
-            if len(pred_answers) == 0:
-                reject_reasons.append("empty_prediction")
-            if len(pred_answers) != 1:
-                reject_reasons.append(f"invalid_prediction_count:{len(pred_answers)}")
+            elif task_for_sample == "ac":
+                if len(pred_answers) == 0:
+                    reject_reasons.append("empty_prediction")
+                if len(pred_answers) != 1:
+                    reject_reasons.append(f"invalid_prediction_count:{len(pred_answers)}")
 
-            pred_one = pred_canon[0] if pred_canon else ""
-            gt_one = gt_canon[0] if gt_canon else ""
-            acc = float(1.0 if (pred_one and gt_one and pred_one == gt_one) else 0.0)
-            reward_outcome = acc
-            task_metrics = {
-                "acc": acc,
-                "is_correct": bool(acc),
-                "reward_outcome": float(reward_outcome),
-            }
-
-        elif task_for_sample == "pf":
-            if len(pred_answers) == 0:
-                reject_reasons.append("empty_prediction")
-
-            pred_set = set(pred_canon)
-            gt_set = set(gt_canon)
-            set_metrics = _compute_set_metrics(pred_set, gt_set)
-            reward_outcome = float(set_metrics["acc"])
-            task_metrics = {
-                **set_metrics,
-                "reward_outcome": float(reward_outcome),
-            }
-            task_reject_checks.update(
-                {
-                    "prediction_unique_size": len(pred_set),
-                    "ground_truth_unique_size": len(gt_set),
+                pred_one = pred_canon[0] if pred_canon else ""
+                gt_one = gt_canon[0] if gt_canon else ""
+                acc = float(1.0 if (pred_one and gt_one and pred_one == gt_one) else 0.0)
+                task_metrics = {
+                    "acc": acc,
+                    "is_correct": bool(acc),
                 }
-            )
 
-        accepted = len(reject_reasons) == 0
-        for rr in reject_reasons:
-            reject_reason_counter[rr] += 1
+            elif task_for_sample == "pf":
+                if len(pred_answers) == 0:
+                    reject_reasons.append("empty_prediction")
 
+                pred_set = set(pred_canon)
+                gt_set = set(gt_canon)
+                set_metrics = _compute_set_metrics(pred_set, gt_set)
+                task_metrics = dict(set_metrics)
+                task_reject_checks.update(
+                    {
+                        "prediction_unique_size": len(pred_set),
+                        "ground_truth_unique_size": len(gt_set),
+                    }
+                )
+
+            accepted = len(reject_reasons) == 0
         task_id = f"{task_for_sample}_row{s.row_number:04d}_idx{s.dataset_index}_r{s.rollout_index:04d}"
 
-        events = _load_session_events(s.sample_dir / "complete_session.jsonl")
-        steps, tool_counter = _build_step_records(events, task_id, accepted, reward_outcome)
+        events = _load_session_events(session_path)
+        steps, tool_counter = _build_step_records(events, task_id, accepted)
         step_records.extend(steps)
         artifact_audit = _build_artifact_audit(events)
+        molclaw_usage_count = int(sum(cnt for name, cnt in tool_counter.items() if str(name).startswith("mcp__molclaw")))
+        if molclaw_usage_count <= 0:
+            if "missing_molclaw_usage" not in reject_reasons:
+                reject_reasons.append("missing_molclaw_usage")
+            accepted = False
+        for st in steps:
+            st["accepted"] = accepted
+        task_reject_checks["molclaw_usage_count"] = molclaw_usage_count
+        for rr in reject_reasons:
+            reject_reason_counter[rr] += 1
 
         traj = {
             "task": task_for_sample,
@@ -583,17 +663,19 @@ def export_results_dir(results_dir: Path, task: str | None = None) -> dict[str, 
                 "ground_truth": gt_canon,
                 "final_answer": pred_canon,
             },
-            "reward_outcome": float(reward_outcome) if reward_outcome is not None else None,
             "task_metrics": task_metrics,
             "metrics": dict(task_metrics),
             "parse_error": parse_error,
-            "timed_out": bool(parsed.get("timed_out", False)),
-            "return_code": run_meta.get("return_code"),
+            "timed_out": timed_out_value,
+            "return_code": return_code_value,
             "tool_stats": dict(tool_counter),
             "artifact_audit": artifact_audit,
+            "molclaw_usage_count": molclaw_usage_count,
             "session_event_count": len(events),
             "step_count": len(steps),
         }
+        if kg_metadata is not None:
+            traj["kg_metadata"] = kg_metadata
         trajectory_records.append(traj)
 
     traj_path = out_dir / "trajectory_level.jsonl"
