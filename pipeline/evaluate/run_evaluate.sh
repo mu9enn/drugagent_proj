@@ -11,7 +11,7 @@ Usage:
   bash pipeline/evaluate/run_evaluate.sh <RESULTS_DIR> [vs|ac|pf]
 
 Example:
-  bash pipeline/evaluate/run_evaluate.sh results/molbench_vs_qwen-397b_run_20260514_192427 vs
+  bash pipeline/evaluate/run_evaluate.sh results/molbench_vs_manual_run_YYYYMMDD_HHMMSS vs
 EOF
   exit 0
 fi

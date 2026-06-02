@@ -64,6 +64,77 @@ def _extract_question(rec: dict[str, Any], qcsv_row: dict[str, str]) -> tuple[st
     return "", "missing"
 
 
+def _normalize_tool_name(name: str) -> str:
+    s = (name or "").strip()
+    if not s:
+        return ""
+    if "__" in s:
+        return s.split("__")[-1]
+    return s
+
+
+def _toolchain_from_trajectory(expected: Any) -> tuple[list[str], list[dict[str, Any]]]:
+    if not isinstance(expected, dict):
+        return [], []
+    wf = expected.get("workflow_graph")
+    if not isinstance(wf, dict):
+        return [], []
+    nodes = wf.get("nodes")
+    edges = wf.get("edges")
+    if not isinstance(nodes, list) or not isinstance(edges, list):
+        return [], []
+
+    tool_node_ids: set[str] = set()
+    node_to_tool: dict[str, str] = {}
+    for n in nodes:
+        if not isinstance(n, dict):
+            continue
+        if str(n.get("type")) != "tool":
+            continue
+        nid = str(n.get("node_id") or "").strip()
+        tid = _normalize_tool_name(str(n.get("tool_id") or ""))
+        if nid and tid:
+            tool_node_ids.add(nid)
+            node_to_tool[nid] = tid
+
+    tool_tools = sorted(set(node_to_tool.values()))
+    tool_edges: list[dict[str, Any]] = []
+    for e in edges:
+        if not isinstance(e, dict):
+            continue
+        src = str(e.get("source") or "").strip()
+        tgt = str(e.get("target") or "").strip()
+        rel = str(e.get("relation") or "").strip()
+        if src in tool_node_ids and tgt in tool_node_ids:
+            tool_edges.append(
+                {
+                    "source_tool": node_to_tool[src],
+                    "target_tool": node_to_tool[tgt],
+                    "edge_type": rel or "workflow_transition",
+                    "confidence": None,
+                    "pair_id": "",
+                    "view": "unknown",
+                    "relation_status": "valid",
+                }
+            )
+    return tool_tools, tool_edges
+
+
+def _validate_expected_trajectory_v2(expected: Any) -> tuple[bool, str | None]:
+    if not isinstance(expected, dict):
+        return False, "expected_trajectory_not_object"
+    if str(expected.get("schema_version") or "") != "trajectory_v2_graph":
+        return False, "expected_trajectory_schema_version_not_v2_graph"
+    wf = expected.get("workflow_graph")
+    if not isinstance(wf, dict):
+        return False, "workflow_graph_missing"
+    if not isinstance(wf.get("nodes"), list) or not isinstance(wf.get("edges"), list):
+        return False, "workflow_graph_nodes_edges_invalid"
+    if not wf.get("nodes"):
+        return False, "workflow_graph_nodes_empty"
+    return True, None
+
+
 def _build_task_spec(
     *,
     rec: dict[str, Any],
@@ -79,18 +150,25 @@ def _build_task_spec(
     tools = rec.get("toolchain_nodes") if isinstance(rec.get("toolchain_nodes"), list) else []
     edges = rec.get("toolchain_edges") if isinstance(rec.get("toolchain_edges"), list) else []
     expected = rec.get("expected_trajectory")
+    if (not tools or not edges) and isinstance(expected, dict):
+        t2, e2 = _toolchain_from_trajectory(expected)
+        if not tools:
+            tools = t2
+        if not edges:
+            edges = e2
 
     task_id = f"kg_{kg_run_id}_{sample_id}"
     payload = rec.get("question_payload") if isinstance(rec.get("question_payload"), dict) else {}
     difficulty = str(payload.get("difficulty") or "unknown")
 
     metadata: dict[str, Any] = {
-        "schema_version": schema_version,
-        "created_by": "molclaw-kg Stage3",
-        "difficulty": difficulty,
-        "question_payload": payload,
-        "source_created_at_utc": rec.get("created_at_utc"),
-    }
+            "schema_version": schema_version,
+            "created_by": "molclaw-kg Stage3",
+            "difficulty": difficulty,
+            "question_payload": payload,
+            "source_created_at_utc": rec.get("created_at_utc"),
+            "trajectory_schema_version": (expected.get("schema_version") if isinstance(expected, dict) else None),
+        }
     if include_raw_sample:
         metadata["raw_kg_sample"] = rec
 
@@ -132,18 +210,20 @@ def main() -> None:
     parser.add_argument("--kg-run-dir", required=True, help="Path like .../molclaw-kg/runs/<run_id>")
     parser.add_argument("--output-dir", required=True, help="Output directory for kg_sampled_tasks.jsonl and artifacts")
     parser.add_argument("--max-samples", type=int, default=0, help="Max accepted samples to export; 0 means all")
-    parser.add_argument("--schema-version", default="kg_task_spec_v0.1")
+    parser.add_argument("--schema-version", default="kg_task_spec_v0.2")
     parser.add_argument("--no-include-raw-sample", action="store_true", help="Do not embed raw KG record in metadata")
     args = parser.parse_args()
 
     kg_run_dir = Path(args.kg_run_dir).expanduser().resolve()
     output_dir = Path(args.output_dir).expanduser().resolve()
     sample_dir = kg_run_dir / "sample_results"
-    success_path = sample_dir / "sample_success.jsonl"
+    success_path_v2 = sample_dir / "sample_success_v2.jsonl"
+    success_path_v1 = sample_dir / "sample_success.jsonl"
+    success_path = success_path_v2 if success_path_v2.is_file() else success_path_v1
     questions_path = sample_dir / "questions.csv"
 
     if not success_path.is_file():
-        raise FileNotFoundError(f"sample_success.jsonl not found: {success_path}")
+        raise FileNotFoundError(f"sample_success jsonl not found: {success_path_v2} / {success_path_v1}")
 
     rows = _load_jsonl(success_path)
     qmap = _load_questions_csv(questions_path)
@@ -171,12 +251,23 @@ def main() -> None:
             reasons.append(f"status_not_success:{status}")
         if not question:
             reasons.append("missing_question")
+        if (not isinstance(expected, dict)) and (not isinstance(expected, list) or not expected):
+            reasons.append("missing_expected_trajectory")
+        else:
+            ok_v2, v2_err = _validate_expected_trajectory_v2(expected)
+            if not ok_v2:
+                reasons.append(f"invalid_expected_trajectory_v2:{v2_err}")
+        if (not isinstance(tools, list) or not tools) or (not isinstance(edges, list) or not edges):
+            if isinstance(expected, dict):
+                t2, e2 = _toolchain_from_trajectory(expected)
+                if not isinstance(tools, list) or not tools:
+                    tools = t2
+                if not isinstance(edges, list) or not edges:
+                    edges = e2
         if not isinstance(tools, list) or not tools:
             reasons.append("missing_toolchain_nodes")
         if not isinstance(edges, list) or not edges:
             reasons.append("missing_toolchain_edges")
-        if not isinstance(expected, (dict, list)) or not expected:
-            reasons.append("missing_expected_trajectory")
 
         if reasons:
             rejected.append(

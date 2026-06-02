@@ -6,7 +6,7 @@ PIPELINE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 REPO_DIR="$(cd "$PIPELINE_DIR/.." && pwd)"
 cd "$REPO_DIR"
 
-PROVIDER="${1:-qwen-397b}"
+PROVIDER="${1:-manual}"
 CLAUDE_BIN="${2:-claude}"
 LIMIT="${3:-0}"
 NUM_ROLLOUTS="${4:-1}"

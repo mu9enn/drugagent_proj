@@ -14,7 +14,7 @@ Usage:
   bash claude_agent/test_flow_claude.sh [provider] [claude_bin] [limit] [num_rollouts] [parallel_rollouts] [task] [dataset_csv] [skip_provider_switch]
 
 Defaults:
-  provider=qwen-397b
+  provider=manual
   claude_bin=claude
   limit=0
   num_rollouts=1
@@ -26,7 +26,7 @@ EOF
   exit 0
 fi
 
-PROVIDER="${1:-qwen-397b}"
+PROVIDER="${1:-manual}"
 CLAUDE_BIN="${2:-claude}"
 LIMIT="${3:-0}"
 NUM_ROLLOUTS="${4:-1}"

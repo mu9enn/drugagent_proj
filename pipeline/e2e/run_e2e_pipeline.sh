@@ -10,7 +10,7 @@ TEST_FLOW="$PIPELINE_DIR/claude_agent/test_flow_claude.sh"
 PYTHON_BIN="${PYTHON_BIN:-python}"
 
 QUESTIONS=""
-PROVIDER="${PROVIDER:-qwen-397b}"
+PROVIDER="${PROVIDER:-manual}"
 CLAUDE_BIN="${CLAUDE_BIN:-claude}"
 LIMIT="${LIMIT:-0}"
 NUM_ROLLOUTS="${NUM_ROLLOUTS:-1}"
@@ -24,7 +24,7 @@ Usage:
 
 Options:
   --questions CSV_IDS          Comma-separated ids (e.g. E2E-Q03,E2E-Q05)
-  --provider NAME              Default: qwen-397b
+  --provider NAME              Default: manual (set model via external cc-switch)
   --claude-bin BIN             Default: claude
   --limit N                    Default: 0 (no limit)
   --num-rollouts N             Default: 1

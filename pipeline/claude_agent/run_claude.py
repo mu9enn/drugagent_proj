@@ -54,6 +54,83 @@ class RolloutResult:
     raw_answer_len: int
 
 
+def _load_expected_mcp_servers(mcp_config_file: Path | None) -> list[str]:
+    if mcp_config_file is None:
+        return []
+    if not mcp_config_file.is_file():
+        return []
+    try:
+        cfg = json.loads(mcp_config_file.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+    if not isinstance(cfg, dict):
+        return []
+    servers = cfg.get("mcpServers")
+    if not isinstance(servers, dict):
+        return []
+    out = [str(k).strip() for k in servers.keys() if str(k).strip()]
+    return out
+
+
+def _check_session_mcp_ready(
+    session_path: Path,
+    expected_mcp_servers: list[str],
+) -> tuple[bool, str, dict[str, Any]]:
+    if not session_path.is_file():
+        return False, "missing_session_file", {}
+
+    init_obj: dict[str, Any] | None = None
+    with session_path.open("r", encoding="utf-8", errors="ignore") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                obj = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(obj, dict):
+                continue
+            if obj.get("type") == "system" and obj.get("subtype") == "init":
+                init_obj = obj
+
+    if init_obj is None:
+        return False, "missing_system_init_event", {}
+
+    tools = init_obj.get("tools")
+    tools = tools if isinstance(tools, list) else []
+    mcp_tools = [t for t in tools if isinstance(t, str) and t.startswith("mcp__")]
+
+    mcp_servers = init_obj.get("mcp_servers")
+    mcp_servers = mcp_servers if isinstance(mcp_servers, list) else []
+    status_by_name: dict[str, str] = {}
+    for item in mcp_servers:
+        if not isinstance(item, dict):
+            continue
+        name = str(item.get("name") or "").strip()
+        if not name:
+            continue
+        status_by_name[name] = str(item.get("status") or "").strip().lower()
+
+    snapshot = {
+        "mcp_tools_count": len(mcp_tools),
+        "mcp_servers": status_by_name,
+    }
+
+    if expected_mcp_servers:
+        for name in expected_mcp_servers:
+            if status_by_name.get(name) != "connected":
+                got = status_by_name.get(name, "missing")
+                return False, f"mcp_server_not_connected:{name}:{got}", snapshot
+    elif status_by_name and not any(v == "connected" for v in status_by_name.values()):
+        return False, "mcp_server_not_connected:any", snapshot
+
+    if not mcp_tools:
+        return False, "mcp_tools_missing_in_init", snapshot
+
+    return True, "ok", snapshot
+
+
 def _safe_name(text: str) -> str:
     s = (text or "sample").strip().lower()
     s = "".join(ch if ch.isalnum() or ch in ("-", "_") else "_" for ch in s)
@@ -699,15 +776,46 @@ def _run_single_rollout(
 
     session_path = workdir / "complete_session.jsonl"
     timeout_sec = None if task in {"e2e", "kg"} else TASK_TIMEOUT_SEC
-    cli_meta = _run_one(
-        claude_bin=claude_bin,
-        prompt=prompt,
-        workdir=workdir,
-        out_file=session_path,
-        timeout_sec=timeout_sec,
-        mcp_config_file=mcp_config_file,
-        strict_mcp_config=strict_mcp_config,
-    )
+    expected_mcp_servers = _load_expected_mcp_servers(mcp_config_file)
+    enforce_mcp_ready = bool(expected_mcp_servers)
+    max_ready_retries = max(0, int(os.environ.get("CLAUDE_MCP_READY_RETRIES", "2")))
+    ready_retry_wait_sec = max(0.0, float(os.environ.get("CLAUDE_MCP_READY_RETRY_WAIT_SEC", "2")))
+    mcp_ready = not enforce_mcp_ready
+    mcp_ready_reason = "mcp_check_skipped_no_config"
+    mcp_snapshot: dict[str, Any] = {}
+    mcp_attempts = 0
+
+    while True:
+        mcp_attempts += 1
+        cli_meta = _run_one(
+            claude_bin=claude_bin,
+            prompt=prompt,
+            workdir=workdir,
+            out_file=session_path,
+            timeout_sec=timeout_sec,
+            mcp_config_file=mcp_config_file,
+            strict_mcp_config=strict_mcp_config,
+        )
+
+        if not enforce_mcp_ready:
+            mcp_ready = True
+            mcp_ready_reason = "mcp_check_skipped_no_expected_server"
+            break
+
+        mcp_ready, mcp_ready_reason, mcp_snapshot = _check_session_mcp_ready(
+            session_path=session_path,
+            expected_mcp_servers=expected_mcp_servers,
+        )
+        if mcp_ready:
+            break
+        if bool(cli_meta.get("timed_out")) or int(cli_meta.get("return_code", 0)) in {124, 127}:
+            break
+        if mcp_attempts > max_ready_retries:
+            break
+        time.sleep(ready_retry_wait_sec)
+
+    if enforce_mcp_ready and not mcp_ready and int(cli_meta.get("return_code", 0)) == 0:
+        cli_meta["return_code"] = 98
 
     session_text = _extract_text_from_stream_jsonl(session_path)
     answer_block = _extract_answer_block(session_text)
@@ -729,6 +837,13 @@ def _run_single_rollout(
     if task in {"e2e", "kg"}:
         # E2E keeps raw final output and does not enforce parse-error gating.
         parse_error = None
+    if enforce_mcp_ready and not mcp_ready:
+        parsed_answer = []
+        parse_error = f"mcp_not_ready:{mcp_ready_reason}"
+        parse_source = "mcp_not_ready"
+        parse_attempts = [{"source": "mcp_not_ready", "error": parse_error, "count": 0}]
+        answer_block = ""
+        raw_answer_len = 0
     if cli_meta.get("timed_out"):
         parsed_answer = []
         parse_error = f"timeout after {TASK_TIMEOUT_SEC} seconds"
@@ -768,6 +883,10 @@ def _run_single_rollout(
         "timeout_sec": cli_meta.get("timeout_sec", TASK_TIMEOUT_SEC),
         "duration_sec": cli_meta["duration_sec"],
         "command": cli_meta["command"],
+        "mcp_ready": bool(mcp_ready),
+        "mcp_ready_reason": mcp_ready_reason,
+        "mcp_attempts": mcp_attempts,
+        "mcp_snapshot": mcp_snapshot,
     }
     (workdir / "run_meta.json").write_text(
         json.dumps(run_meta, ensure_ascii=False, indent=2),
@@ -905,7 +1024,7 @@ def main() -> None:
     parser.add_argument("--skills-root", default="skills")
     parser.add_argument("--results-root", default="results")
     parser.add_argument("--system-prompt-file", default="", help="Optional prompt filename under skills root")
-    parser.add_argument("--provider", default=os.environ.get("CC_SWITCH_PROVIDER", "qwen-397b"))
+    parser.add_argument("--provider", default=os.environ.get("CC_SWITCH_PROVIDER", "manual"))
     parser.add_argument("--claude-bin", default=os.environ.get("CLAUDE_BIN", "claude"))
     parser.add_argument("--start-row", type=int, default=1, help="1-based row index in CSV")
     parser.add_argument("--end-row", type=int, default=0, help="1-based inclusive row index; 0 means all")

@@ -71,6 +71,22 @@ def _load_jsonl(path: Path) -> list[dict[str, Any]]:
     return rows
 
 
+def _load_json_records(path: Path) -> list[dict[str, Any]]:
+    if path.is_file():
+        return _load_jsonl(path)
+    if path.is_dir():
+        rows: list[dict[str, Any]] = []
+        for p in sorted(path.glob("*.json")):
+            try:
+                obj = json.loads(p.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+            if isinstance(obj, dict):
+                rows.append(obj)
+        return rows
+    return []
+
+
 def _write_json(path: Path, obj: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(obj, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -166,7 +182,9 @@ def _extract_tool_call_json(content: str) -> dict[str, Any] | None:
 
 def _extract_answer_payload(content: str) -> Any | None:
     content = content.strip()
-    m = re.search(r"<answer>([\s\S]*?)</answer>", content, flags=re.IGNORECASE)
+    m = re.search(r"<final_answer>([\s\S]*?)</final_answer>", content, flags=re.IGNORECASE)
+    if not m:
+        m = re.search(r"<answer>([\s\S]*?)</answer>", content, flags=re.IGNORECASE)
     payload = m.group(1).strip() if m else ""
     if not payload:
         return None
@@ -176,23 +194,92 @@ def _extract_answer_payload(content: str) -> Any | None:
         return payload
 
 
-def _build_final_answer_action(rec: dict[str, Any], fallback_text: str = "") -> dict[str, Any]:
-    meta = rec.get("metadata") if isinstance(rec.get("metadata"), dict) else {}
-    task_meta = meta.get("task") if isinstance(meta.get("task"), dict) else {}
-    final_meta = meta.get("final_answer") if isinstance(meta.get("final_answer"), dict) else {}
-
-    result: dict[str, Any] = {
-        "task_type": task_meta.get("task_type"),
-        "candidate_count": task_meta.get("candidate_count"),
-        "ranking_smiles": final_meta.get("ranking_smiles", []),
+def _task_specific_result(task_type: str, values: list[str], fallback_text: str = "") -> dict[str, Any]:
+    vals = [v for v in values if isinstance(v, str) and v.strip()]
+    if task_type == "ac":
+        answer_smiles = vals[0] if vals else ""
+        short_reason = f"Selected {answer_smiles} as the predicted molecule." if answer_smiles else "Selected the predicted molecule."
+        return {
+            "task_type": "ac",
+            "answer_smiles": answer_smiles,
+            "selected_molecule": answer_smiles,
+            "short_reason": short_reason,
+            "evidence": [],
+        }
+    if task_type == "vs":
+        ranked_smiles = vals
+        selected_smiles = ranked_smiles[0] if ranked_smiles else ""
+        short_reason = (
+            f"Ranked the candidate SMILES and selected {selected_smiles} as the top candidate."
+            if selected_smiles
+            else "Ranked the candidate SMILES and selected the top candidate."
+        )
+        return {
+            "task_type": "vs",
+            "ranked_smiles": ranked_smiles,
+            "selected_smiles": selected_smiles,
+            "short_reason": short_reason,
+            "evidence": [],
+        }
+    if task_type == "pf":
+        prediction = vals
+        short_reason = f"Extracted {len(prediction)} predicted SMILES from the final response."
+        return {
+            "task_type": "pf",
+            "prediction": prediction,
+            "labels": [],
+            "short_reason": short_reason,
+            "evidence": [],
+        }
+    if task_type in {"kg", "e2e"}:
+        answer_text = fallback_text.strip() or (vals[0] if vals else "")
+        short_reason = answer_text[:180] if answer_text else "Final response extracted from the completed session."
+        return {
+            "task_type": task_type,
+            "answer": answer_text,
+            "steps_summary": short_reason,
+            "evidence": [],
+        }
+    answer_text = fallback_text.strip() or (vals[0] if vals else "")
+    short_reason = answer_text[:180] if answer_text else "Final response extracted from the completed session."
+    return {
+        "task_type": task_type,
+        "answer": answer_text,
+        "short_reason": short_reason,
+        "evidence": [],
     }
-    if fallback_text.strip():
-        result["raw_answer"] = fallback_text.strip()
 
+
+def _build_final_answer_action(rec: dict[str, Any], answer_obj: Any | None = None, fallback_text: str = "") -> dict[str, Any]:
+    task_type = _task_from_id_or_meta(rec)
+    if isinstance(answer_obj, dict) and str(answer_obj.get("type") or "") == "final_answer" and isinstance(answer_obj.get("answer"), dict):
+        return answer_obj
+
+    values: list[str] = []
+    if isinstance(answer_obj, list):
+        values = _ensure_smiles_list(answer_obj)
+    elif isinstance(answer_obj, dict):
+        for key in ("ranking", "ranked", "ordered", "predicted_ranking", "top3", "prediction", "output", "answer"):
+            values = _ensure_smiles_list(answer_obj.get(key))
+            if values:
+                break
+        if not values:
+            nested = answer_obj.get("answer")
+            if isinstance(nested, str) and nested.strip():
+                values = [nested.strip()]
+    elif isinstance(answer_obj, str):
+        values = _ensure_smiles_list(answer_obj)
+    if not values and fallback_text.strip():
+        values = _ensure_smiles_list(fallback_text)
+        if not values:
+            values = [ln.strip() for ln in fallback_text.splitlines() if ln.strip()]
+
+    result = _task_specific_result(task_type, values, fallback_text=fallback_text)
     return {
         "type": "final_answer",
+        "task_type": task_type,
         "answer": {
-            "summary": "Final answer generated from accepted trajectory.",
+            "summary": str(result.get("short_reason") or "Final answer generated from accepted trajectory."),
             "evidence": [],
             "result": result,
         },
@@ -272,8 +359,10 @@ def _normalize_sft_record(rec: dict[str, Any], stats: NormalizeStats) -> tuple[d
 
             answer_obj = _extract_answer_payload(content)
             if answer_obj is not None:
-                action = _build_final_answer_action(rec, fallback_text=content)
-                action["answer"]["result"]["parsed_answer"] = answer_obj
+                if isinstance(answer_obj, dict) and str(answer_obj.get("type") or "") == "final_answer" and isinstance(answer_obj.get("answer"), dict):
+                    action = answer_obj
+                else:
+                    action = _build_final_answer_action(rec, answer_obj=answer_obj, fallback_text=content)
                 normalized.append(
                     {
                         "role": "assistant",
@@ -294,7 +383,7 @@ def _normalize_sft_record(rec: dict[str, Any], stats: NormalizeStats) -> tuple[d
         return None, "missing_system_or_user"
 
     if not final_action_added:
-        action = _build_final_answer_action(rec, fallback_text=last_assistant_text)
+        action = _build_final_answer_action(rec, answer_obj=None, fallback_text=last_assistant_text)
         normalized.append(
             {
                 "role": "assistant",
@@ -331,6 +420,9 @@ def _normalize_sft_record(rec: dict[str, Any], stats: NormalizeStats) -> tuple[d
             if not isinstance(ans, dict):
                 stats.invalid += 1
                 return None, "final_answer_schema_invalid"
+            if not isinstance(obj.get("task_type"), str) or not str(obj.get("task_type") or "").strip():
+                stats.invalid += 1
+                return None, "final_answer_task_type_invalid"
             if not isinstance(ans.get("summary"), str):
                 stats.invalid += 1
                 return None, "final_answer_summary_invalid"
@@ -340,32 +432,65 @@ def _normalize_sft_record(rec: dict[str, Any], stats: NormalizeStats) -> tuple[d
             if not isinstance(ans.get("result"), dict):
                 stats.invalid += 1
                 return None, "final_answer_result_invalid"
+            result = ans.get("result")
+            task_type = str(obj.get("task_type") or _task_from_id_or_meta(rec) or "").strip().lower()
+            result_task = str(result.get("task_type") or task_type).strip().lower()
+            if task_type and result_task and task_type != result_task:
+                stats.invalid += 1
+                return None, "final_answer_task_mismatch"
+            if task_type == "ac":
+                if not isinstance(result.get("answer_smiles"), str) or not str(result.get("answer_smiles") or "").strip():
+                    stats.invalid += 1
+                    return None, "final_answer_ac_answer_smiles_invalid"
+                if not isinstance(result.get("short_reason"), str) or not str(result.get("short_reason") or "").strip():
+                    stats.invalid += 1
+                    return None, "final_answer_ac_short_reason_invalid"
+            elif task_type == "vs":
+                ranked = result.get("ranked_smiles")
+                selected = result.get("selected_smiles")
+                ranked_ok = isinstance(ranked, list) and any(isinstance(v, str) and v.strip() for v in ranked)
+                selected_ok = isinstance(selected, str) and bool(selected.strip())
+                if not (ranked_ok or selected_ok):
+                    stats.invalid += 1
+                    return None, "final_answer_vs_ranking_invalid"
+                if not isinstance(result.get("short_reason"), str) or not str(result.get("short_reason") or "").strip():
+                    stats.invalid += 1
+                    return None, "final_answer_vs_short_reason_invalid"
+            elif task_type == "pf":
+                prediction = result.get("prediction")
+                if not isinstance(prediction, list) or not any(isinstance(v, str) and v.strip() for v in prediction):
+                    stats.invalid += 1
+                    return None, "final_answer_pf_prediction_invalid"
+                labels = result.get("labels")
+                if labels is not None and not isinstance(labels, list):
+                    stats.invalid += 1
+                    return None, "final_answer_pf_labels_invalid"
+                if not isinstance(result.get("short_reason"), str) or not str(result.get("short_reason") or "").strip():
+                    stats.invalid += 1
+                    return None, "final_answer_pf_short_reason_invalid"
+            elif task_type in {"kg", "e2e"}:
+                if task_type == "e2e" and "steps_summary" in result and not isinstance(result.get("steps_summary"), str):
+                    stats.invalid += 1
+                    return None, "final_answer_steps_summary_invalid"
 
-    meta = rec.get("metadata") if isinstance(rec.get("metadata"), dict) else {}
     task_type = _task_from_id_or_meta(rec)
     out = {
         "schema_version": SFT_SCHEMA_VERSION,
         "id": rid,
         "messages": normalized,
-        "tools": rec.get("tools") if isinstance(rec.get("tools"), list) else [],
-        "metadata": {
-            "source_project": "mol-pipeline",
-            "task_type": task_type,
-            "source_run": _source_run_from_record(rec),
-            "trajectory_id": rid,
-            "accepted": True,
-            "answer_hit": True,
-            "used_molclaw": True,
-            "tool_call_count": int(meta.get("trajectory", {}).get("num_tool_calls", 0)) if isinstance(meta.get("trajectory"), dict) else 0,
-            "normalization": "json_action_v0.1",
-            "source_metadata": meta,
-        },
     }
     stats.valid += 1
     return out, None
 
 
-def _build_rl_prompt_record_from_sft(rec: dict[str, Any], index: int) -> tuple[dict[str, Any] | None, str | None]:
+def _build_rl_prompt_record_from_sft(
+    rec: dict[str, Any],
+    index: int,
+    *,
+    task: str | None = None,
+    summary_row: dict[str, Any] | None = None,
+    cleaning_report: dict[str, Any] | None = None,
+) -> tuple[dict[str, Any] | None, str | None]:
     msgs = rec.get("messages")
     if not isinstance(msgs, list) or not msgs:
         return None, "missing_messages"
@@ -382,13 +507,16 @@ def _build_rl_prompt_record_from_sft(rec: dict[str, Any], index: int) -> tuple[d
     if len(prompt) < 2:
         return None, "prompt_too_short"
 
-    meta = rec.get("metadata") if isinstance(rec.get("metadata"), dict) else {}
-    task_type = str(meta.get("task_type") or "unknown")
+    task_type = str(task or _task_from_id_or_meta(rec) or "unknown")
     data_source = f"mol_pipeline_{task_type}"
     allowed_tools = []
-    for t in rec.get("tools") or []:
-        if isinstance(t, dict) and isinstance(t.get("name"), str):
-            allowed_tools.append(t["name"])
+    if cleaning_report and isinstance(cleaning_report.get("raw_tool_name_map"), list):
+        for item in cleaning_report["raw_tool_name_map"]:
+            if not isinstance(item, dict) or not item.get("kept"):
+                continue
+            tool_name = str(item.get("tool_name") or "").strip()
+            if tool_name:
+                allowed_tools.append(tool_name)
 
     out = {
         "id": str(rec.get("id") or ""),
@@ -399,12 +527,13 @@ def _build_rl_prompt_record_from_sft(rec: dict[str, Any], index: int) -> tuple[d
         "extra_info": {
             "index": index,
             "task_type": task_type,
-            "source_run": str(meta.get("source_run") or ""),
-            "trajectory_id": str(meta.get("trajectory_id") or rec.get("id") or ""),
+            "source_run": str((summary_row or {}).get("run_dir") or ""),
+            "trajectory_id": str(rec.get("id") or ""),
             "has_reference_trajectory": True,
-            "used_molclaw": bool(meta.get("used_molclaw", True)),
-            "answer_hit": bool(meta.get("answer_hit", True)),
-            "tool_call_count": int(meta.get("tool_call_count", 0)),
+            "used_molclaw": True,
+            "answer_hit": (summary_row or {}).get("answer_hit_pass"),
+            "tool_call_count": int((cleaning_report or {}).get("counts", {}).get("retained_mcp_tool_calls", 0)),
+            "final_answer_source": (cleaning_report or {}).get("final_answer_source"),
         },
         "env_kwargs": {
             "task": {
@@ -514,6 +643,7 @@ def _validate_normalized_sft(rows: list[dict[str, Any]]) -> tuple[dict[str, Any]
 
     for r in rows:
         rid = str(r.get("id") or "")
+        task = _task_from_id_or_meta(r)
         msgs = r.get("messages")
         if not isinstance(msgs, list) or not msgs:
             reason = "missing_messages"
@@ -554,6 +684,66 @@ def _validate_normalized_sft(rows: list[dict[str, Any]]) -> tuple[dict[str, Any]
                 tool_call_count += 1
             elif t == "final_answer":
                 final_answer_count += 1
+                ans = obj.get("answer")
+                if not isinstance(ans, dict):
+                    ok = False
+                    reason = "final_answer_schema_invalid"
+                    break
+                if not isinstance(ans.get("summary"), str) or not str(ans.get("summary") or "").strip():
+                    ok = False
+                    reason = "final_answer_summary_invalid"
+                    break
+                if not isinstance(ans.get("evidence"), list):
+                    ok = False
+                    reason = "final_answer_evidence_invalid"
+                    break
+                result = ans.get("result")
+                if not isinstance(result, dict):
+                    ok = False
+                    reason = "final_answer_result_invalid"
+                    break
+                result_task = str(obj.get("task_type") or result.get("task_type") or task).strip().lower()
+                if result_task and task not in {"unknown", ""} and result_task != task:
+                    ok = False
+                    reason = "final_answer_task_mismatch"
+                    break
+                if task == "ac":
+                    if not isinstance(result.get("answer_smiles"), str) or not str(result.get("answer_smiles") or "").strip():
+                        ok = False
+                        reason = "final_answer_ac_answer_smiles_invalid"
+                        break
+                    if not isinstance(result.get("short_reason"), str) or not str(result.get("short_reason") or "").strip():
+                        ok = False
+                        reason = "final_answer_ac_short_reason_invalid"
+                        break
+                elif task == "vs":
+                    ranked = result.get("ranked_smiles")
+                    selected = result.get("selected_smiles")
+                    ranked_ok = isinstance(ranked, list) and any(isinstance(v, str) and v.strip() for v in ranked)
+                    selected_ok = isinstance(selected, str) and bool(selected.strip())
+                    if not (ranked_ok or selected_ok):
+                        ok = False
+                        reason = "final_answer_vs_ranking_invalid"
+                        break
+                    if not isinstance(result.get("short_reason"), str) or not str(result.get("short_reason") or "").strip():
+                        ok = False
+                        reason = "final_answer_vs_short_reason_invalid"
+                        break
+                elif task == "pf":
+                    prediction = result.get("prediction")
+                    if not isinstance(prediction, list) or not any(isinstance(v, str) and v.strip() for v in prediction):
+                        ok = False
+                        reason = "final_answer_pf_prediction_invalid"
+                        break
+                    labels = result.get("labels")
+                    if labels is not None and not isinstance(labels, list):
+                        ok = False
+                        reason = "final_answer_pf_labels_invalid"
+                        break
+                    if not isinstance(result.get("short_reason"), str) or not str(result.get("short_reason") or "").strip():
+                        ok = False
+                        reason = "final_answer_pf_short_reason_invalid"
+                        break
             else:
                 ok = False
                 reason = "assistant_action_type_invalid"
@@ -565,7 +755,6 @@ def _validate_normalized_sft(rows: list[dict[str, Any]]) -> tuple[dict[str, Any]
             invalid_reason_hist[reason] = invalid_reason_hist.get(reason, 0) + 1
             invalid_rows.append({"id": rid, "reason": reason})
             continue
-        task = str(r.get("metadata", {}).get("task_type", "unknown")) if isinstance(r.get("metadata"), dict) else "unknown"
         task_hist[task] = task_hist.get(task, 0) + 1
 
     report = {
@@ -879,8 +1068,8 @@ def main() -> None:
             "missing SFT files: expected mcp_sft_train.jsonl+mcp_sft_valid.jsonl or mcp_sft_all.jsonl"
         )
 
-    if raw_all_path.is_file() and (not raw_train_path.is_file() or not raw_valid_path.is_file()):
-        all_rows = _load_jsonl(raw_all_path)
+    if (raw_all_path.is_file() or raw_all_path.is_dir()) and (not raw_train_path.is_file() or not raw_valid_path.is_file()):
+        all_rows = _load_json_records(raw_all_path)
         raw_train: list[dict[str, Any]] = []
         raw_valid: list[dict[str, Any]] = []
         for rec in all_rows:
@@ -892,8 +1081,8 @@ def main() -> None:
         _write_jsonl(raw_train_path, raw_train)
         _write_jsonl(raw_valid_path, raw_valid)
 
-    if raw_rl_all_path.is_file() and (not raw_rl_train_path.is_file() or not raw_rl_valid_path.is_file()):
-        all_rl = _load_jsonl(raw_rl_all_path)
+    if (raw_rl_all_path.is_file() or raw_rl_all_path.is_dir()) and (not raw_rl_train_path.is_file() or not raw_rl_valid_path.is_file()):
+        all_rl = _load_json_records(raw_rl_all_path)
         rl_train_rows: list[dict[str, Any]] = []
         rl_valid_rows: list[dict[str, Any]] = []
         for rec in all_rl:

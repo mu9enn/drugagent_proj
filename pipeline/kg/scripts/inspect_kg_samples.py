@@ -47,6 +47,38 @@ def _tool_like_mcp(name: str) -> bool:
     return s.startswith("mcp__") or ("__" not in s and " " not in s)
 
 
+def _extract_tools_from_trajectory(expected: Any) -> list[str]:
+    if not isinstance(expected, dict):
+        return []
+    wf = expected.get("workflow_graph")
+    if not isinstance(wf, dict):
+        return []
+    nodes = wf.get("nodes")
+    if not isinstance(nodes, list):
+        return []
+    out: list[str] = []
+    for n in nodes:
+        if not isinstance(n, dict):
+            continue
+        if str(n.get("type")) != "tool":
+            continue
+        tid = str(n.get("tool_id") or "").strip()
+        if tid:
+            out.append(tid)
+    return out
+
+
+def _is_expected_v2(expected: Any) -> bool:
+    if not isinstance(expected, dict):
+        return False
+    if str(expected.get("schema_version") or "") != "trajectory_v2_graph":
+        return False
+    wf = expected.get("workflow_graph")
+    if not isinstance(wf, dict):
+        return False
+    return isinstance(wf.get("nodes"), list) and isinstance(wf.get("edges"), list)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Inspect molclaw-kg sampled outputs for schema and field quality.")
     parser.add_argument("--kg-run-dir", required=True, help="Path like .../molclaw-kg/runs/<run_id>")
@@ -55,7 +87,9 @@ def main() -> None:
 
     kg_run_dir = Path(args.kg_run_dir).expanduser().resolve()
     sample_dir = kg_run_dir / "sample_results"
-    success_path = sample_dir / "sample_success.jsonl"
+    success_path_v2 = sample_dir / "sample_success_v2.jsonl"
+    success_path_v1 = sample_dir / "sample_success.jsonl"
+    success_path = success_path_v2 if success_path_v2.is_file() else success_path_v1
     questions_path = sample_dir / "questions.csv"
 
     rows = _load_jsonl(success_path)
@@ -66,6 +100,8 @@ def main() -> None:
     missing_toolchain = 0
     invalid_tool_names = 0
     leak_suspected = 0
+    expected_v2_invalid = 0
+    expected_v2_missing = 0
     status_hist: dict[str, int] = {}
 
     per_sample: list[dict[str, Any]] = []
@@ -83,15 +119,22 @@ def main() -> None:
         tools = rec.get("toolchain_nodes")
         edges = rec.get("toolchain_edges")
 
+        if (not isinstance(tools, list) or not tools) and isinstance(expected, dict):
+            tools = _extract_tools_from_trajectory(expected)
+
         has_question = bool(question)
         has_expected = isinstance(expected, (dict, list)) and bool(expected)
         has_tools = isinstance(tools, list) and len(tools) > 0
         has_edges = isinstance(edges, list) and len(edges) > 0
+        expected_v2_ok = _is_expected_v2(expected)
 
         if not has_question:
             missing_question += 1
         if not has_expected:
             missing_expected += 1
+            expected_v2_missing += 1
+        elif not expected_v2_ok:
+            expected_v2_invalid += 1
         if not (has_tools and has_edges):
             missing_toolchain += 1
 
@@ -123,6 +166,7 @@ def main() -> None:
                 "status": status,
                 "has_question": has_question,
                 "has_expected_trajectory": has_expected,
+                "expected_trajectory_v2_ok": expected_v2_ok,
                 "has_toolchain_nodes": has_tools,
                 "has_toolchain_edges": has_edges,
                 "tool_name_format_ok": tool_valid,
@@ -141,6 +185,8 @@ def main() -> None:
         "quality": {
             "missing_question": missing_question,
             "missing_expected_trajectory": missing_expected,
+            "missing_expected_trajectory_v2": expected_v2_missing,
+            "invalid_expected_trajectory_v2": expected_v2_invalid,
             "missing_toolchain": missing_toolchain,
             "invalid_tool_name_format": invalid_tool_names,
             "question_leak_suspected": leak_suspected,

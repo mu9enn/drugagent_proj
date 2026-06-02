@@ -76,6 +76,20 @@ def _extract_expected_tools(kg_task_spec: dict[str, Any]) -> list[str]:
 
     traj = kg_task_spec.get("expected_trajectory")
     if isinstance(traj, dict):
+        wf = traj.get("workflow_graph")
+        if isinstance(wf, dict):
+            nodes = wf.get("nodes")
+            if isinstance(nodes, list):
+                for node in nodes:
+                    if not isinstance(node, dict):
+                        continue
+                    if str(node.get("type") or "") != "tool":
+                        continue
+                    tid = str(node.get("tool_id") or "").strip()
+                    if tid:
+                        expected.append(_normalize_tool_name(tid))
+            if expected:
+                return expected
         steps = traj.get("steps")
         if isinstance(steps, list):
             for step in steps:

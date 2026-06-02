@@ -9,7 +9,7 @@ PYTHON_BIN="${PYTHON_BIN:-python}"
 
 KG_TASK_FILE=""
 N_CASES=""
-PROVIDER="${PROVIDER:-qwen-397b}"
+PROVIDER="${PROVIDER:-manual}"
 CLAUDE_BIN="${CLAUDE_BIN:-claude}"
 NUM_ROLLOUTS="${NUM_ROLLOUTS:-1}"
 PARALLEL_ROLLOUTS="${PARALLEL_ROLLOUTS:-1}"
@@ -24,7 +24,7 @@ Usage:
 Options:
   --kg-task-file PATH          Input KGTaskSpec JSONL
   --n-cases N                  Number of tasks to run from the head of JSONL
-  --provider NAME              Default: qwen-397b
+  --provider NAME              Default: manual (set model via external cc-switch)
   --claude-bin BIN             Default: claude
   --num-rollouts N             Default: 1
   --parallel-rollouts N        Default: 1

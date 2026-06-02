@@ -13,15 +13,15 @@ N_CASES=""
 usage() {
   cat <<USAGE
 Usage:
-  bash scripts/run_molbench_workflow.sh --seed <int> --n-cases <int>
+  bash scripts/run_molbench_workflow.sh --seed 602 --n-cases 120
 
 Description:
   1) Generate AC/VS/PF datasets under get-molbench/outputs/auto/{ac,vs,pf}
   2) Merge PF v0/v1 to molbench-pf-<N>-<SEED>.csv
   3) Send three pipeline jobs via tmux send-keys:
-     - vs_pipe-2:0 (task=vs)
-     - ac_pipe-4:0 (task=ac)
-     - pf_pipe-5:0 (task=pf)
+     - pipe-vs-1:0 (task=vs)
+     - pipe-ac-2:0 (task=ac)
+     - pipe-pf-3:0 (task=pf)
 USAGE
 }
 
@@ -75,26 +75,18 @@ if [[ -f "$ENV_FILE" ]]; then
   set +a
 fi
 
-REQUIRED_ENV_VARS=(
-  MOLCLAW_VS_MCP_URL
-  MOLCLAW_VS_MCP_AUTH
-  MOLCLAW_SCP_MCP_URL
-  MOLCLAW_SCP_MCP_AUTH
-)
-for var_name in "${REQUIRED_ENV_VARS[@]}"; do
-  if [[ -z "${!var_name:-}" ]]; then
-    echo "[error] Missing required env: $var_name" >&2
-    echo "        Please set it in shell env or $ENV_FILE" >&2
-    exit 1
-  fi
-done
-
 MOLCLAW_VS_MCP_SERVER_NAME="${MOLCLAW_VS_MCP_SERVER_NAME:-molclaw-vs}"
-MOLCLAW_VS_MCP_AUTH_HEADER="${MOLCLAW_VS_MCP_AUTH_HEADER:-Authorization}"
+MOLCLAW_VS_MCP_URL="${MOLCLAW_VS_MCP_URL:-https://birth-lopez-hughes-need.trycloudflare.com/mcp}"
+MOLCLAW_VS_MCP_AUTH_HEADER="${MOLCLAW_VS_MCP_AUTH_HEADER:-X-MCP-AUTH}"
+MOLCLAW_VS_MCP_AUTH="${MOLCLAW_VS_MCP_AUTH:-69b4187c504e859d6bce5157bd7434568a70fc4bd7929bb31fe7bb4404a3f873}"
 MOLCLAW_SCP_MCP_SERVER_NAME="${MOLCLAW_SCP_MCP_SERVER_NAME:-molclaw-scp}"
+MOLCLAW_SCP_MCP_URL="${MOLCLAW_SCP_MCP_URL:-http://180.184.86.2:32208/mcp}"
 MOLCLAW_SCP_MCP_AUTH_HEADER="${MOLCLAW_SCP_MCP_AUTH_HEADER:-SCP-HUB-API-KEY}"
+MOLCLAW_SCP_MCP_AUTH="${MOLCLAW_SCP_MCP_AUTH:-sk-a0033dde-b3cd-413b-adbe-980bc78d6126}"
 
 PYTHON_BIN="${PYTHON_BIN:-python}"
+PROVIDER="${PROVIDER:-${CC_SWITCH_PROVIDER:-manual}}"
+CLAUDE_BIN="${CLAUDE_BIN:-claude}"
 
 AC_OUT_DIR="$GET_DIR/outputs/auto/ac"
 VS_OUT_DIR="$GET_DIR/outputs/auto/vs"
@@ -167,9 +159,9 @@ ensure_tmux_target() {
   fi
 }
 
-ensure_tmux_target "vs_pipe-2:0"
-ensure_tmux_target "ac_pipe-4:0"
-ensure_tmux_target "pf_pipe-5:0"
+ensure_tmux_target "pipe-vs-1:0"
+ensure_tmux_target "pipe-ac-2:0"
+ensure_tmux_target "pipe-pf-3:0"
 
 if [[ -f "$ENV_FILE" ]]; then
   printf -v ENV_BOOTSTRAP 'set -a; source "%s"; set +a; export PYTHON_BIN=%q; ' "$ENV_FILE" "$PYTHON_BIN"
@@ -179,15 +171,15 @@ else
     "$MOLCLAW_VS_MCP_SERVER_NAME" "$MOLCLAW_VS_MCP_URL" "$MOLCLAW_VS_MCP_AUTH_HEADER" "$MOLCLAW_VS_MCP_AUTH" \
     "$MOLCLAW_SCP_MCP_SERVER_NAME" "$MOLCLAW_SCP_MCP_URL" "$MOLCLAW_SCP_MCP_AUTH_HEADER" "$MOLCLAW_SCP_MCP_AUTH" "$PYTHON_BIN"
 fi
-VS_CMD="$ENV_BOOTSTRAP bash $PIPELINE_DIR/claude_agent/test_flow_claude.sh qwen-397b claude 0 1 1 vs $VS_CSV 1"
-AC_CMD="$ENV_BOOTSTRAP bash $PIPELINE_DIR/claude_agent/test_flow_claude.sh qwen-397b claude 0 1 1 ac $AC_CSV 1"
-PF_CMD="$ENV_BOOTSTRAP bash $PIPELINE_DIR/claude_agent/test_flow_claude.sh qwen-397b claude 0 1 1 pf $PF_CSV 1"
+VS_CMD="$ENV_BOOTSTRAP bash $PIPELINE_DIR/claude_agent/test_flow_claude.sh $PROVIDER $CLAUDE_BIN 0 1 1 vs $VS_CSV 1"
+AC_CMD="$ENV_BOOTSTRAP bash $PIPELINE_DIR/claude_agent/test_flow_claude.sh $PROVIDER $CLAUDE_BIN 0 1 1 ac $AC_CSV 1"
+PF_CMD="$ENV_BOOTSTRAP bash $PIPELINE_DIR/claude_agent/test_flow_claude.sh $PROVIDER $CLAUDE_BIN 0 1 1 pf $PF_CSV 1"
 
-tmux send-keys -t vs_pipe-2:0 "$VS_CMD" C-m
-tmux send-keys -t ac_pipe-4:0 "$AC_CMD" C-m
-tmux send-keys -t pf_pipe-5:0 "$PF_CMD" C-m
+tmux send-keys -t pipe-vs-1:0 "$VS_CMD" C-m
+tmux send-keys -t pipe-ac-2:0 "$AC_CMD" C-m
+tmux send-keys -t pipe-pf-3:0 "$PF_CMD" C-m
 
 echo "[done] tmux commands sent"
-echo "  vs_pipe-2:0 -> $VS_CMD"
-echo "  ac_pipe-4:0 -> $AC_CMD"
-echo "  pf_pipe-5:0 -> $PF_CMD"
+echo "  pipe-vs-1:0 -> $VS_CMD"
+echo "  pipe-ac-2:0 -> $AC_CMD"
+echo "  pipe-pf-3:0 -> $PF_CMD"

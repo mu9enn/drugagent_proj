@@ -38,10 +38,17 @@ def _err(errors: list[str], msg: str) -> None:
     errors.append(msg)
 
 
+def _task_from_id(rid: str) -> str:
+    m = re.match(r"^mcp_sft_(vs|ac|pf|kg|e2e)_", str(rid or ""))
+    return m.group(1) if m else "unknown"
+
+
 def _validate_sft_file(path: Path, errors: list[str]) -> dict[str, Any]:
     rows = _load_jsonl(path)
     assistant_json_fail = 0
     for i, r in enumerate(rows, 1):
+        rid = str(r.get("id") or "")
+        task = _task_from_id(rid)
         msgs = r.get("messages")
         if not isinstance(msgs, list) or not msgs:
             _err(errors, f"{path.name}: row {i} missing messages")
@@ -76,6 +83,8 @@ def _validate_sft_file(path: Path, errors: list[str]) -> dict[str, Any]:
                 if not isinstance(obj.get("tool_name"), str) or not isinstance(obj.get("arguments"), dict):
                     _err(errors, f"{path.name}: row {i} tool_call schema invalid")
             if t == "final_answer":
+                if not isinstance(obj.get("task_type"), str) or not str(obj.get("task_type") or "").strip():
+                    _err(errors, f"{path.name}: row {i} final_answer.task_type invalid")
                 ans = obj.get("answer")
                 if not isinstance(ans, dict):
                     _err(errors, f"{path.name}: row {i} final_answer.answer invalid")
@@ -86,6 +95,34 @@ def _validate_sft_file(path: Path, errors: list[str]) -> dict[str, Any]:
                         _err(errors, f"{path.name}: row {i} final_answer.evidence invalid")
                     if not isinstance(ans.get("result"), dict):
                         _err(errors, f"{path.name}: row {i} final_answer.result invalid")
+                    else:
+                        result = ans.get("result")
+                        result_task = str(result.get("task_type") or obj.get("task_type") or task).strip().lower()
+                        if task != "unknown" and result_task and result_task != task:
+                            _err(errors, f"{path.name}: row {i} final_answer task mismatch")
+                        if task == "ac":
+                            if not isinstance(result.get("answer_smiles"), str) or not str(result.get("answer_smiles") or "").strip():
+                                _err(errors, f"{path.name}: row {i} ac answer_smiles invalid")
+                            if not isinstance(result.get("short_reason"), str) or not str(result.get("short_reason") or "").strip():
+                                _err(errors, f"{path.name}: row {i} ac short_reason invalid")
+                        elif task == "vs":
+                            ranked = result.get("ranked_smiles")
+                            selected = result.get("selected_smiles")
+                            ranked_ok = isinstance(ranked, list) and any(isinstance(v, str) and v.strip() for v in ranked)
+                            selected_ok = isinstance(selected, str) and bool(selected.strip())
+                            if not (ranked_ok or selected_ok):
+                                _err(errors, f"{path.name}: row {i} vs ranking invalid")
+                            if not isinstance(result.get("short_reason"), str) or not str(result.get("short_reason") or "").strip():
+                                _err(errors, f"{path.name}: row {i} vs short_reason invalid")
+                        elif task == "pf":
+                            prediction = result.get("prediction")
+                            if not isinstance(prediction, list) or not any(isinstance(v, str) and v.strip() for v in prediction):
+                                _err(errors, f"{path.name}: row {i} pf prediction invalid")
+                            labels = result.get("labels")
+                            if labels is not None and not isinstance(labels, list):
+                                _err(errors, f"{path.name}: row {i} pf labels invalid")
+                            if not isinstance(result.get("short_reason"), str) or not str(result.get("short_reason") or "").strip():
+                                _err(errors, f"{path.name}: row {i} pf short_reason invalid")
         if not has_assistant:
             _err(errors, f"{path.name}: row {i} has no assistant turn")
     return {"rows": len(rows), "assistant_json_parse_fail_count": assistant_json_fail}

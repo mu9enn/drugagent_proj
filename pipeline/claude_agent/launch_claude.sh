@@ -19,7 +19,7 @@ fi
 TASK="${TASK:-vs}"
 SKILLS_ROOT="${SKILLS_ROOT:-}"
 SYSTEM_PROMPT_FILE="${SYSTEM_PROMPT_FILE:-}"
-PROVIDER="${CC_SWITCH_PROVIDER:-qwen-397b}"
+PROVIDER="${CC_SWITCH_PROVIDER:-manual}"
 CLAUDE_BIN="${CLAUDE_BIN:-claude}"
 PYTHON_BIN="${PYTHON_BIN:-python}"
 SKIP_PROVIDER_SWITCH=0
@@ -109,7 +109,7 @@ Shared options:
   --task TASK
   --skills-root PATH
   --system-prompt-file NAME
-  --provider ID                 (default: qwen-397b)
+  --provider ID                 (default: manual; set model via external cc-switch)
   --claude-bin PATH_OR_NAME     (default: claude)
   --skip-provider-switch
   --skip-mcp-verify
@@ -133,31 +133,31 @@ if [[ "$TASK" == "vs" ]]; then
   : "${SYSTEM_PROMPT_FILE:=system_prompt_result.md}"
   : "${DATASET_CSV:=$REPO_DIR/molbench/molbench-vs-900.csv}"
   : "${MCP_SERVER_NAME:=${MOLCLAW_VS_MCP_SERVER_NAME:-molclaw-vs}}"
-  : "${MCP_SERVER_URL:=${MOLCLAW_VS_MCP_URL:-}}"
-  : "${MCP_SERVER_AUTH:=${MOLCLAW_VS_MCP_AUTH:-}}"
-  : "${MCP_SERVER_AUTH_HEADER:=${MOLCLAW_VS_MCP_AUTH_HEADER:-Authorization}}"
+  : "${MCP_SERVER_URL:=${MOLCLAW_VS_MCP_URL:-https://birth-lopez-hughes-need.trycloudflare.com/mcp}}"
+  : "${MCP_SERVER_AUTH:=${MOLCLAW_VS_MCP_AUTH:-69b4187c504e859d6bce5157bd7434568a70fc4bd7929bb31fe7bb4404a3f873}}"
+  : "${MCP_SERVER_AUTH_HEADER:=${MOLCLAW_VS_MCP_AUTH_HEADER:-X-MCP-AUTH}}"
 elif [[ "$TASK" == "e2e" ]]; then
   : "${SKILLS_ROOT:=skills/skills_full}"
   : "${SYSTEM_PROMPT_FILE:=system_prompt_FULL.md}"
   : "${DATASET_CSV:=$REPO_DIR/molbench/MolBench-E2E/e2e_dataset.csv}"
   : "${MCP_SERVER_NAME:=${MOLCLAW_SCP_MCP_SERVER_NAME:-molclaw-scp}}"
-  : "${MCP_SERVER_URL:=${MOLCLAW_SCP_MCP_URL:-}}"
-  : "${MCP_SERVER_AUTH:=${MOLCLAW_SCP_MCP_AUTH:-}}"
+  : "${MCP_SERVER_URL:=${MOLCLAW_SCP_MCP_URL:-http://180.184.86.2:32208/mcp}}"
+  : "${MCP_SERVER_AUTH:=${MOLCLAW_SCP_MCP_AUTH:-sk-a0033dde-b3cd-413b-adbe-980bc78d6126}}"
   : "${MCP_SERVER_AUTH_HEADER:=${MOLCLAW_SCP_MCP_AUTH_HEADER:-SCP-HUB-API-KEY}}"
 elif [[ "$TASK" == "kg" ]]; then
   : "${SKILLS_ROOT:=skills/skills_full}"
   : "${SYSTEM_PROMPT_FILE:=system_prompt_FULL.md}"
   : "${MCP_SERVER_NAME:=${MOLCLAW_SCP_MCP_SERVER_NAME:-molclaw-scp}}"
-  : "${MCP_SERVER_URL:=${MOLCLAW_SCP_MCP_URL:-}}"
-  : "${MCP_SERVER_AUTH:=${MOLCLAW_SCP_MCP_AUTH:-}}"
+  : "${MCP_SERVER_URL:=${MOLCLAW_SCP_MCP_URL:-http://180.184.86.2:32208/mcp}}"
+  : "${MCP_SERVER_AUTH:=${MOLCLAW_SCP_MCP_AUTH:-sk-a0033dde-b3cd-413b-adbe-980bc78d6126}}"
   : "${MCP_SERVER_AUTH_HEADER:=${MOLCLAW_SCP_MCP_AUTH_HEADER:-SCP-HUB-API-KEY}}"
 else
   : "${SKILLS_ROOT:=skills/skills_full}"
   : "${SYSTEM_PROMPT_FILE:=system_prompt_FULL.md}"
   : "${DATASET_CSV:=$REPO_DIR/molbench/molbench-${TASK}-900.csv}"
   : "${MCP_SERVER_NAME:=${MOLCLAW_SCP_MCP_SERVER_NAME:-molclaw-scp}}"
-  : "${MCP_SERVER_URL:=${MOLCLAW_SCP_MCP_URL:-}}"
-  : "${MCP_SERVER_AUTH:=${MOLCLAW_SCP_MCP_AUTH:-}}"
+  : "${MCP_SERVER_URL:=${MOLCLAW_SCP_MCP_URL:-http://180.184.86.2:32208/mcp}}"
+  : "${MCP_SERVER_AUTH:=${MOLCLAW_SCP_MCP_AUTH:-sk-a0033dde-b3cd-413b-adbe-980bc78d6126}}"
   : "${MCP_SERVER_AUTH_HEADER:=${MOLCLAW_SCP_MCP_AUTH_HEADER:-SCP-HUB-API-KEY}}"
 fi
 
@@ -166,15 +166,19 @@ if [[ "$TASK" == "kg" && -z "${DATASET_CSV:-}" ]]; then
   exit 1
 fi
 
-if [[ -z "$MCP_SERVER_URL" ]]; then
+if [[ -z "${MCP_SERVER_URL:-}" ]]; then
   cat >&2 <<'EOF'
 [error] MCP server URL is empty.
 Please set task-specific MCP env vars, e.g.:
   export MOLCLAW_VS_MCP_URL='https://.../mcp'
   export MOLCLAW_VS_MCP_AUTH='...'
-  export MOLCLAW_SCP_MCP_URL='https://.../mcp'
+  export MOLCLAW_SCP_MCP_URL='http://.../mcp'
   export MOLCLAW_SCP_MCP_AUTH='...'
 EOF
+  exit 1
+fi
+if [[ -z "${MCP_SERVER_AUTH:-}" ]]; then
+  echo "[error] MCP auth token is empty. Please set auth env for current task server." >&2
   exit 1
 fi
 
@@ -194,22 +198,24 @@ cleanup_mcp_config() {
 trap cleanup_mcp_config EXIT
 
 write_task_mcp_config() {
-  "$PYTHON_BIN" - "$MCP_CONFIG_FILE" "$MCP_SERVER_NAME" "$MCP_SERVER_URL" "$MCP_SERVER_AUTH_HEADER" "$MCP_SERVER_AUTH" <<'PY'
+  "$PYTHON_BIN" - \
+    "$MCP_CONFIG_FILE" \
+    "$MCP_SERVER_NAME" "$MCP_SERVER_URL" "$MCP_SERVER_AUTH_HEADER" "$MCP_SERVER_AUTH" <<'PY'
 import json
 import sys
 from pathlib import Path
 
 out_path = Path(sys.argv[1])
-name = sys.argv[2]
-url = sys.argv[3]
-header = sys.argv[4]
-token = sys.argv[5]
+name, url, header, token = sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5]
+
+if not name or not url:
+    raise SystemExit("no valid MCP servers to write")
 
 server = {"type": "http", "url": url}
 if header and token:
     server["headers"] = {header: token}
-
 cfg = {"mcpServers": {name: server}}
+
 out_path.write_text(json.dumps(cfg, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 PY
 }
@@ -222,7 +228,7 @@ fi
 
 write_task_mcp_config
 if [[ "$SKIP_MCP_VERIFY" -eq 0 ]]; then
-  echo "[run] using strict task MCP config: ${MCP_CONFIG_FILE} (${MCP_SERVER_NAME})"
+  echo "[run] using strict MCP config: ${MCP_CONFIG_FILE} (server: ${MCP_SERVER_NAME})"
 fi
 
 if [[ ! -d "$SKILLS_ROOT" ]]; then

@@ -9,6 +9,7 @@ PYTHON_BIN="${PYTHON_BIN:-python}"
 RESULTS_ROOT="${RESULTS_ROOT:-$REPO_DIR/results}"
 OUTPUT_ROOT="${OUTPUT_ROOT:-$RESULTS_ROOT/postprocess_candidates}"
 ANSWER_HIT_ONLY=0
+SPLIT_MULTI_TOOL_CALLS=0
 SKIP_EXPORT=0
 SKIP_SCAN=0
 SKIP_SFT=0
@@ -22,6 +23,7 @@ Options:
   --results-root PATH      Default: <repo>/results
   --output-root PATH       Default: <results-root>/postprocess_candidates
   --answer-hit-only        Only affects vs/ac/pf when building SFT/RL
+  --split-multi-tool-calls  Split multiple tool calls from one assistant event
   --skip-export            Skip trajectory_exporter stage
   --skip-scan              Skip scan_molclaw_usage stage
   --skip-sft               Skip post_process_sft stage
@@ -33,6 +35,7 @@ while [[ $# -gt 0 ]]; do
     --results-root) RESULTS_ROOT="${2:-}"; shift 2 ;;
     --output-root) OUTPUT_ROOT="${2:-}"; shift 2 ;;
     --answer-hit-only) ANSWER_HIT_ONLY=1; shift ;;
+    --split-multi-tool-calls) SPLIT_MULTI_TOOL_CALLS=1; shift ;;
     --skip-export) SKIP_EXPORT=1; shift ;;
     --skip-scan) SKIP_SCAN=1; shift ;;
     --skip-sft) SKIP_SFT=1; shift ;;
@@ -76,6 +79,9 @@ if [[ "$SKIP_SFT" -eq 0 ]]; then
   if [[ "$ANSWER_HIT_ONLY" -eq 1 ]]; then
     cmd+=(--answer-hit-only)
   fi
+  if [[ "$SPLIT_MULTI_TOOL_CALLS" -eq 1 ]]; then
+    cmd+=(--split-multi-tool-calls)
+  fi
   "${cmd[@]}"
 fi
 
@@ -83,6 +89,10 @@ echo "[done] postprocess pipeline finished"
 echo "  results_root: $RESULTS_ROOT"
 echo "  output_root:  $OUTPUT_ROOT"
 if [[ "$SKIP_SFT" -eq 0 ]]; then
-  echo "  sft_all:      $OUTPUT_ROOT/sft_outputs/mcp_sft_all.jsonl"
+  echo "  sft_all:      $OUTPUT_ROOT/sft_outputs/mcp_sft_all/"
+  echo "  sft_all_compat_jsonl: $OUTPUT_ROOT/sft_outputs/mcp_sft_all.jsonl"
   echo "  rl_all:       $OUTPUT_ROOT/sft_outputs/mcp_rl_prompts_all.jsonl"
+  if [[ "$SPLIT_MULTI_TOOL_CALLS" -eq 1 ]]; then
+    echo "  split_tools:  enabled"
+  fi
 fi

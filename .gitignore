@@ -33,3 +33,4 @@ exports/
 # Other local runtime folders
 tmp/
 tmp_test_claude/
+*.tar.gz
