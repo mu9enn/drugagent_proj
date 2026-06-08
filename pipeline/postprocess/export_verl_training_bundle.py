@@ -202,7 +202,6 @@ def _task_specific_result(task_type: str, values: list[str], fallback_text: str 
         return {
             "task_type": "ac",
             "answer_smiles": answer_smiles,
-            "selected_molecule": answer_smiles,
             "short_reason": short_reason,
             "evidence": [],
         }
@@ -222,12 +221,11 @@ def _task_specific_result(task_type: str, values: list[str], fallback_text: str 
             "evidence": [],
         }
     if task_type == "pf":
-        prediction = vals
-        short_reason = f"Extracted {len(prediction)} predicted SMILES from the final response."
+        selected_smiles = vals
+        short_reason = f"Extracted {len(selected_smiles)} predicted SMILES from the final response."
         return {
             "task_type": "pf",
-            "prediction": prediction,
-            "labels": [],
+            "selected_smiles": selected_smiles,
             "short_reason": short_reason,
             "evidence": [],
         }
@@ -259,10 +257,31 @@ def _build_final_answer_action(rec: dict[str, Any], answer_obj: Any | None = Non
     if isinstance(answer_obj, list):
         values = _ensure_smiles_list(answer_obj)
     elif isinstance(answer_obj, dict):
-        for key in ("ranking", "ranked", "ordered", "predicted_ranking", "top3", "prediction", "output", "answer"):
+        if task_type == "ac":
+            answer_smiles = _ensure_smiles_list(answer_obj.get("answer_smiles"))
+            selected_molecule = _ensure_smiles_list(answer_obj.get("selected_molecule"))
+            if answer_smiles and selected_molecule and answer_smiles[0] != selected_molecule[0]:
+                result = dict(answer_obj)
+                result.setdefault("task_type", task_type)
+                summary = str(result.get("short_reason") or result.get("summary") or "Final answer generated from accepted trajectory.")
+                return {
+                    "type": "final_answer",
+                    "task_type": task_type,
+                    "answer": {
+                        "summary": summary,
+                        "evidence": list(result.get("evidence") or []) if isinstance(result.get("evidence"), list) else [],
+                        "result": result,
+                    },
+                }
+        for key in ("ranking", "ranked", "ranked_smiles", "ordered", "predicted_ranking", "top3", "prediction", "output", "answer"):
             values = _ensure_smiles_list(answer_obj.get(key))
             if values:
                 break
+        if not values:
+            for key in ("answer_smiles", "selected_molecule", "selected_smiles"):
+                values = _ensure_smiles_list(answer_obj.get(key))
+                if values:
+                    break
         if not values:
             nested = answer_obj.get("answer")
             if isinstance(nested, str) and nested.strip():
@@ -275,6 +294,10 @@ def _build_final_answer_action(rec: dict[str, Any], answer_obj: Any | None = Non
             values = [ln.strip() for ln in fallback_text.splitlines() if ln.strip()]
 
     result = _task_specific_result(task_type, values, fallback_text=fallback_text)
+    if isinstance(answer_obj, dict) and task_type == "pf":
+        labels = answer_obj.get("labels")
+        if isinstance(labels, list) and labels:
+            result["labels"] = [str(v).strip() for v in labels if isinstance(v, str) and v.strip()]
     return {
         "type": "final_answer",
         "task_type": task_type,
@@ -457,10 +480,13 @@ def _normalize_sft_record(rec: dict[str, Any], stats: NormalizeStats) -> tuple[d
                     stats.invalid += 1
                     return None, "final_answer_vs_short_reason_invalid"
             elif task_type == "pf":
+                selected_smiles = result.get("selected_smiles")
                 prediction = result.get("prediction")
-                if not isinstance(prediction, list) or not any(isinstance(v, str) and v.strip() for v in prediction):
+                selected_ok = isinstance(selected_smiles, list) and any(isinstance(v, str) and v.strip() for v in selected_smiles)
+                prediction_ok = isinstance(prediction, list) and any(isinstance(v, str) and v.strip() for v in prediction)
+                if not (selected_ok or prediction_ok):
                     stats.invalid += 1
-                    return None, "final_answer_pf_prediction_invalid"
+                    return None, "final_answer_pf_selected_smiles_invalid"
                 labels = result.get("labels")
                 if labels is not None and not isinstance(labels, list):
                     stats.invalid += 1
@@ -730,10 +756,13 @@ def _validate_normalized_sft(rows: list[dict[str, Any]]) -> tuple[dict[str, Any]
                         reason = "final_answer_vs_short_reason_invalid"
                         break
                 elif task == "pf":
+                    selected_smiles = result.get("selected_smiles")
                     prediction = result.get("prediction")
-                    if not isinstance(prediction, list) or not any(isinstance(v, str) and v.strip() for v in prediction):
+                    selected_ok = isinstance(selected_smiles, list) and any(isinstance(v, str) and v.strip() for v in selected_smiles)
+                    prediction_ok = isinstance(prediction, list) and any(isinstance(v, str) and v.strip() for v in prediction)
+                    if not (selected_ok or prediction_ok):
                         ok = False
-                        reason = "final_answer_pf_prediction_invalid"
+                        reason = "final_answer_pf_selected_smiles_invalid"
                         break
                     labels = result.get("labels")
                     if labels is not None and not isinstance(labels, list):

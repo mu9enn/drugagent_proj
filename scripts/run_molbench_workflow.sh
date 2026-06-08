@@ -13,7 +13,7 @@ N_CASES=""
 usage() {
   cat <<USAGE
 Usage:
-  bash scripts/run_molbench_workflow.sh --seed 602 --n-cases 120
+  bash scripts/run_molbench_workflow.sh --seed 604 --n-cases 60
 
 Description:
   1) Generate AC/VS/PF datasets under get-molbench/outputs/auto/{ac,vs,pf}
@@ -76,13 +76,20 @@ if [[ -f "$ENV_FILE" ]]; then
 fi
 
 MOLCLAW_VS_MCP_SERVER_NAME="${MOLCLAW_VS_MCP_SERVER_NAME:-molclaw-vs}"
-MOLCLAW_VS_MCP_URL="${MOLCLAW_VS_MCP_URL:-https://birth-lopez-hughes-need.trycloudflare.com/mcp}"
+MOLCLAW_VS_MCP_URL="${MOLCLAW_VS_MCP_URL:-}"
 MOLCLAW_VS_MCP_AUTH_HEADER="${MOLCLAW_VS_MCP_AUTH_HEADER:-X-MCP-AUTH}"
-MOLCLAW_VS_MCP_AUTH="${MOLCLAW_VS_MCP_AUTH:-69b4187c504e859d6bce5157bd7434568a70fc4bd7929bb31fe7bb4404a3f873}"
+MOLCLAW_VS_MCP_AUTH="${MOLCLAW_VS_MCP_AUTH:-}"
 MOLCLAW_SCP_MCP_SERVER_NAME="${MOLCLAW_SCP_MCP_SERVER_NAME:-molclaw-scp}"
-MOLCLAW_SCP_MCP_URL="${MOLCLAW_SCP_MCP_URL:-http://180.184.86.2:32208/mcp}"
+MOLCLAW_SCP_MCP_URL="${MOLCLAW_SCP_MCP_URL:-}"
 MOLCLAW_SCP_MCP_AUTH_HEADER="${MOLCLAW_SCP_MCP_AUTH_HEADER:-SCP-HUB-API-KEY}"
-MOLCLAW_SCP_MCP_AUTH="${MOLCLAW_SCP_MCP_AUTH:-sk-a0033dde-b3cd-413b-adbe-980bc78d6126}"
+MOLCLAW_SCP_MCP_AUTH="${MOLCLAW_SCP_MCP_AUTH:-}"
+
+for required_var in MOLCLAW_VS_MCP_URL MOLCLAW_VS_MCP_AUTH MOLCLAW_SCP_MCP_URL MOLCLAW_SCP_MCP_AUTH; do
+  if [[ -z "${!required_var}" ]]; then
+    echo "[error] $required_var is required; configure it once in $ENV_FILE" >&2
+    exit 1
+  fi
+done
 
 PYTHON_BIN="${PYTHON_BIN:-python}"
 PROVIDER="${PROVIDER:-${CC_SWITCH_PROVIDER:-manual}}"

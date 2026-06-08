@@ -43,6 +43,18 @@ def _safe_load_jsonl(path: Path) -> list[dict[str, Any]]:
     return rows
 
 
+def _session_ends_with_runner_error(path: Path) -> bool:
+    if not path.is_file():
+        return False
+    last_nonempty = ""
+    with path.open("r", encoding="utf-8", errors="ignore") as f:
+        for line in f:
+            stripped = line.strip()
+            if stripped:
+                last_nonempty = stripped
+    return last_nonempty.startswith("[runner-error]")
+
+
 def _find_run_dir(path: Path) -> Path | None:
     for anc in [path.parent] + list(path.parents):
         if RUN_RE.match(anc.name):
@@ -185,6 +197,26 @@ def _answer_hit_pass(task: str, m: dict[str, Any]) -> bool | None:
     return None
 
 
+def _missing_metric_reason(task: str, metrics: dict[str, Any]) -> str | None:
+    required = {
+        "vs": ("vs_top3_hit_num", "vs_top10_hit_num"),
+        "ac": ("ac_is_correct",),
+        "pf": ("pf_precision", "pf_recall", "pf_f1", "pf_is_correct"),
+    }.get(task, ())
+    for field in required:
+        if metrics.get(field) is None:
+            if field == "pf_is_correct":
+                return "missing_pf_exact_match"
+            return f"missing_{field}"
+    return None
+
+
+def _write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
+    with path.open("w", encoding="utf-8") as f:
+        for row in rows:
+            f.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+
 def _unique_dst(path: Path) -> Path:
     if not path.exists():
         return path
@@ -234,6 +266,8 @@ def main() -> None:
     copied = 0
     skipped_unknown = 0
     skipped_no_session = 0
+    skipped_runner_error_last_line = 0
+    rejected_missing_metrics: list[dict[str, Any]] = []
 
     if args.use_accepted_only:
         accepted_files = sorted(results_root.rglob("trajectories/accepted.jsonl"))
@@ -249,6 +283,9 @@ def main() -> None:
                 if session_path is None or not session_path.is_file():
                     skipped_no_session += 1
                     continue
+                if _session_ends_with_runner_error(session_path):
+                    skipped_runner_error_last_line += 1
+                    continue
 
                 traj_rec = rec
                 idx = run_indices.get(run_dir)
@@ -257,6 +294,14 @@ def main() -> None:
                     if matched:
                         traj_rec = matched
 
+                metric_cols = _metrics_from_record(task, traj_rec)
+                missing_reason = _missing_metric_reason(task, metric_cols)
+                if missing_reason:
+                    rejected_missing_metrics.append(
+                        {"task": task, "source": str(session_path), "run_dir": str(run_dir), "reason": missing_reason}
+                    )
+                    continue
+
                 row_dir = _find_row_dir(session_path)
                 row_name = row_dir.name if row_dir else "row_unknown"
                 rollout_name = session_path.parent.name if ROLLOUT_RE.match(session_path.parent.name) else "rollout0001"
@@ -264,7 +309,6 @@ def main() -> None:
                 dst_path = _unique_dst(task_dirs[task] / dst_name)
                 shutil.copy2(session_path, dst_path)
 
-                metric_cols = _metrics_from_record(task, traj_rec)
                 rows.append(
                     {
                         "task": task,
@@ -289,6 +333,9 @@ def main() -> None:
             if task not in SUPPORTED_TASKS:
                 skipped_unknown += 1
                 continue
+            if _session_ends_with_runner_error(session_path):
+                skipped_runner_error_last_line += 1
+                continue
 
             traj_rec: dict[str, Any] = {}
             idx = run_indices.get(run_dir.resolve())
@@ -297,6 +344,14 @@ def main() -> None:
                 if matched:
                     traj_rec = matched
 
+            metric_cols = _metrics_from_record(task, traj_rec)
+            missing_reason = _missing_metric_reason(task, metric_cols)
+            if missing_reason:
+                rejected_missing_metrics.append(
+                    {"task": task, "source": str(session_path), "run_dir": str(run_dir), "reason": missing_reason}
+                )
+                continue
+
             row_dir = _find_row_dir(session_path)
             row_name = row_dir.name if row_dir else "row_unknown"
             rollout_name = session_path.parent.name if ROLLOUT_RE.match(session_path.parent.name) else "rollout0001"
@@ -304,7 +359,6 @@ def main() -> None:
             dst_path = _unique_dst(task_dirs[task] / dst_name)
             shutil.copy2(session_path, dst_path)
 
-            metric_cols = _metrics_from_record(task, traj_rec)
             rows.append(
                 {
                     "task": task,
@@ -341,6 +395,8 @@ def main() -> None:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(rows)
+    rejected_path = output_root / "stage2_rejected_candidates.jsonl"
+    _write_jsonl(rejected_path, rejected_missing_metrics)
 
     print(f"results_root={results_root}")
     print(f"output_root={output_root}")
@@ -349,6 +405,9 @@ def main() -> None:
     print(f"copied_files={copied}")
     print(f"skipped_unknown={skipped_unknown}")
     print(f"skipped_no_session={skipped_no_session}")
+    print(f"skipped_runner_error_last_line={skipped_runner_error_last_line}")
+    print(f"stage2_rejected_missing_metrics={len(rejected_missing_metrics)}")
+    print(f"stage2_rejected_file={rejected_path}")
 
 
 if __name__ == "__main__":

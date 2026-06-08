@@ -1,6 +1,6 @@
 # 4.5 轨迹导出链（Trajectory Flow）深度调查报告
 
-- 项目根目录：`/home/sunxiangyu/sunxiangyu/vs_pipeline`
+- 项目根目录：`<legacy-vs-pipeline-root>`
 - 调查时间：`2026-05-13`
 - 调查对象：`claude_agent/trajectory_exporter.py` + 真实 `results/*/trajectories/*` 产物
 - 调查重点：
@@ -293,7 +293,7 @@
 ## 8.1 仅重导出轨迹
 
 ```bash
-cd /home/sunxiangyu/sunxiangyu/vs_pipeline
+cd <legacy-vs-pipeline-root>
 python claude_agent/trajectory_exporter.py /absolute/path/to/results/molbench_vs_xxx_run_xxx --task vs
 ```
 

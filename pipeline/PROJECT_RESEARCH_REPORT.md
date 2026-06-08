@@ -1,23 +1,23 @@
 # VS Pipeline 全量堆叠式深度研究报告（FULL_DUMP）
 
-> 报告生成时间：2026-05-13  
-> 研究根目录（PROJECT_ROOT）：`/home/sunxiangyu/sunxiangyu/vs_pipeline`  
-> 运行模式（MODE）：`deep`  
-> 语言（LANGUAGE）：中文  
-> 堆叠风格（STACK_STYLE）：`FULL_DUMP`  
-> 说明：用户未提供 `OUTPUT_REPORT` 实值，本文默认写入：`/home/sunxiangyu/sunxiangyu/vs_pipeline/PROJECT_RESEARCH_REPORT.md`。
+> 报告生成时间：2026-05-13
+> 研究根目录（PROJECT_ROOT）：`<legacy-vs-pipeline-root>`
+> 运行模式（MODE）：`deep`
+> 语言（LANGUAGE）：中文
+> 堆叠风格（STACK_STYLE）：`FULL_DUMP`
+> 说明：用户未提供 `OUTPUT_REPORT` 实值，本文默认写入：`<legacy-vs-pipeline-root>/PROJECT_RESEARCH_REPORT.md`。
 
 ---
 
 ## 1. 执行摘要（项目一句话 + 当前成熟度 + 总体判断）
 
-一句话定义：该项目是一个面向 MolBench 三任务（VS/AC/PF）的 **Agent 批量执行 + 结果评估 + 轨迹导出** 管线，目标是把 `complete_session.jsonl` 转换为可审计的 trajectory 数据集。  
-证据：`/home/sunxiangyu/sunxiangyu/vs_pipeline/readme.md:1-41`、`/home/sunxiangyu/sunxiangyu/vs_pipeline/claude_agent/run_claude.py:847-867`、`/home/sunxiangyu/sunxiangyu/vs_pipeline/claude_agent/trajectory_exporter.py:599-639`。
+一句话定义：该项目是一个面向 MolBench 三任务（VS/AC/PF）的 **Agent 批量执行 + 结果评估 + 轨迹导出** 管线，目标是把 `complete_session.jsonl` 转换为可审计的 trajectory 数据集。
+证据：`<legacy-vs-pipeline-root>/readme.md:1-41`、`<legacy-vs-pipeline-root>/claude_agent/run_claude.py:847-867`、`<legacy-vs-pipeline-root>/claude_agent/trajectory_exporter.py:599-639`。
 
-成熟度判断：**研究工程混合型，PoC+工程化过渡阶段（中等成熟）**。  
-- 工程化已落地：统一入口、完成性检查、评估审计、trajectory 导出。  
-- 稳定性短板明显：VS 任务工具链可用性与超时问题突出，历史 run 完整率不稳定。  
-证据：`/home/sunxiangyu/sunxiangyu/vs_pipeline/readme.md:45-60`，历史 run 检查结果（24 个 run 中仅一部分有 completion/bench/traj 文件）。
+成熟度判断：**研究工程混合型，PoC+工程化过渡阶段（中等成熟）**。
+- 工程化已落地：统一入口、完成性检查、评估审计、trajectory 导出。
+- 稳定性短板明显：VS 任务工具链可用性与超时问题突出，历史 run 完整率不稳定。
+证据：`<legacy-vs-pipeline-root>/readme.md:45-60`，历史 run 检查结果（24 个 run 中仅一部分有 completion/bench/traj 文件）。
 
 总体判断：
 - **可用于继续研发与问题定位**（有较完整代码链和可追溯产物）。
@@ -30,14 +30,14 @@
 
 ### 2.1 优先文件处理
 
-用户未给出 `PRIORITY_FILES` 实值（仅给了占位说明），按“空优先列表”处理。  
+用户未给出 `PRIORITY_FILES` 实值（仅给了占位说明），按“空优先列表”处理。
 执行策略：先读项目文档入口，再全项目扫描，再下钻核心脚本与产物。
 
 实际阅读顺序：
-1. `/home/sunxiangyu/sunxiangyu/vs_pipeline/readme.md`
-2. `/home/sunxiangyu/sunxiangyu/vs_pipeline/ToFix.md`
-3. `/home/sunxiangyu/sunxiangyu/vs_pipeline/claude_agent/README.md`
-4. `/home/sunxiangyu/sunxiangyu/vs_pipeline/evaluate/readme.md`
+1. `<legacy-vs-pipeline-root>/readme.md`
+2. `<legacy-vs-pipeline-root>/ToFix.md`
+3. `<legacy-vs-pipeline-root>/claude_agent/README.md`
+4. `<legacy-vs-pipeline-root>/evaluate/readme.md`
 5. 核心代码：`run_claude.py`、`trajectory_exporter.py`、`eval_runner.py`、`run_eval_bench.py`、`launch_claude.sh`、`test_flow_claude.sh`、`test_parallel.sh`
 6. 数据资产：`molbench/*.csv`
 7. 产物资产：`results/` 下 24 个 run + 并行日志 + 代表性样本目录。
@@ -69,8 +69,8 @@
 交付目标（Deliverable Goal）：
 - 每次 run 输出结构化目录：`run_config.json`、`run_summary.jsonl`、`preds/`、`completion_report.json`、`trajectories/`、`bench_scores.json`（评估后）。
 
-项目类型识别：**研究工程混合型**。  
-- 研究属性：MolBench scientific task、轨迹数据化。  
+项目类型识别：**研究工程混合型**。
+- 研究属性：MolBench scientific task、轨迹数据化。
 - 工程属性：脚本编排、质量门、批处理、目录规范。
 
 调查范围：
@@ -108,10 +108,10 @@
 6. `test_flow_claude.sh` 拿 `RESULTS_DIR` 后调用 `evaluate/run_eval_bench.py`。
 
 证据：
-- `/home/sunxiangyu/sunxiangyu/vs_pipeline/claude_agent/test_flow_claude.sh:82-124`
-- `/home/sunxiangyu/sunxiangyu/vs_pipeline/claude_agent/launch_claude.sh:194-225`
-- `/home/sunxiangyu/sunxiangyu/vs_pipeline/claude_agent/run_claude.py:951-1125`
-- `/home/sunxiangyu/sunxiangyu/vs_pipeline/evaluate/run_eval_bench.py:18-35`
+- `<legacy-vs-pipeline-root>/claude_agent/test_flow_claude.sh:82-124`
+- `<legacy-vs-pipeline-root>/claude_agent/launch_claude.sh:194-225`
+- `<legacy-vs-pipeline-root>/claude_agent/run_claude.py:951-1125`
+- `<legacy-vs-pipeline-root>/evaluate/run_eval_bench.py:18-35`
 
 ### 4.2 数据预处理链（Data Flow）
 
@@ -120,18 +120,18 @@
 - `questions` 字段为 JSON 字符串，提取 `candidates`。
 - GT 使用 `answer` JSON 列表。
 
-证据：`run_claude.py` `_load_samples` VS 分支：`/home/sunxiangyu/sunxiangyu/vs_pipeline/claude_agent/run_claude.py:459-483`。
+证据：`run_claude.py` `_load_samples` VS 分支：`<legacy-vs-pipeline-root>/claude_agent/run_claude.py:459-483`。
 
 #### AC
 - 输入列：`question, answer, target, s1,k1,s2,k2`。
 - GT 通过 `_parse_pf_gt` 解析后只保留第一项（单标签）。
 
-证据：`/home/sunxiangyu/sunxiangyu/vs_pipeline/claude_agent/run_claude.py:485-501`。
+证据：`<legacy-vs-pipeline-root>/claude_agent/run_claude.py:485-501`。
 
 #### PF
 - 输入列：`prompt`（或 `question` 兜底）+ `answer`（可多项集合）。
 
-证据：`/home/sunxiangyu/sunxiangyu/vs_pipeline/claude_agent/run_claude.py:503-517`。
+证据：`<legacy-vs-pipeline-root>/claude_agent/run_claude.py:503-517`。
 
 数据规模核验：
 - `molbench-vs-900.csv`: 900x6，候选长度固定 60。
@@ -147,9 +147,9 @@
 - 写 `parsed_answer.json`、`run_meta.json`。
 
 证据：
-- 会话执行：`/home/sunxiangyu/sunxiangyu/vs_pipeline/claude_agent/run_claude.py:537-593`
-- 单 rollout 落盘：`/home/sunxiangyu/sunxiangyu/vs_pipeline/claude_agent/run_claude.py:595-719`
-- 解析策略：`/home/sunxiangyu/sunxiangyu/vs_pipeline/claude_agent/run_claude.py:350-444`
+- 会话执行：`<legacy-vs-pipeline-root>/claude_agent/run_claude.py:537-593`
+- 单 rollout 落盘：`<legacy-vs-pipeline-root>/claude_agent/run_claude.py:595-719`
+- 解析策略：`<legacy-vs-pipeline-root>/claude_agent/run_claude.py:350-444`
 
 ### 4.4 预测与评估链（Model/Eval Flow）
 
@@ -157,7 +157,7 @@
 - `preds/molbench_<task>/molbench_<task>.json`（主评估入口，rollout1）。
 - `preds/molbench_<task>/rollouts/rollout_XXXX.json`（多 rollout）。
 
-证据：`/home/sunxiangyu/sunxiangyu/vs_pipeline/claude_agent/run_claude.py:1089-1106`。
+证据：`<legacy-vs-pipeline-root>/claude_agent/run_claude.py:1089-1106`。
 
 `evaluate/eval_runner.py`：
 - VS：top3/top10 命中与一致性审计（长度、候选集外、重复、无候选）。
@@ -166,9 +166,9 @@
 - RDKit 可用则 canonical 评估；不可用退化字符串。
 
 证据：
-- VS：`/home/sunxiangyu/sunxiangyu/vs_pipeline/evaluate/eval_runner.py:56-153`
-- AC：`/home/sunxiangyu/sunxiangyu/vs_pipeline/evaluate/eval_runner.py:155-235`
-- PF：`/home/sunxiangyu/sunxiangyu/vs_pipeline/evaluate/eval_runner.py:255-332`
+- VS：`<legacy-vs-pipeline-root>/evaluate/eval_runner.py:56-153`
+- AC：`<legacy-vs-pipeline-root>/evaluate/eval_runner.py:155-235`
+- PF：`<legacy-vs-pipeline-root>/evaluate/eval_runner.py:255-332`
 
 ### 4.5 轨迹导出链（Trajectory Flow）
 
@@ -182,7 +182,7 @@
 核心质量门：
 - parse_error、空候选（VS）、长度不等、重复、候选集外等。
 
-证据：`/home/sunxiangyu/sunxiangyu/vs_pipeline/claude_agent/trajectory_exporter.py:489-560, 599-639`。
+证据：`<legacy-vs-pipeline-root>/claude_agent/trajectory_exporter.py:489-560, 599-639`。
 
 ---
 
@@ -303,9 +303,9 @@ PF（900）：
 - `run_claude.py`：唯一批处理执行真源。
 
 证据：
-- `/home/sunxiangyu/sunxiangyu/vs_pipeline/claude_agent/test_flow_claude.sh:82-124`
-- `/home/sunxiangyu/sunxiangyu/vs_pipeline/claude_agent/launch_claude.sh:194-226`
-- `/home/sunxiangyu/sunxiangyu/vs_pipeline/claude_agent/run_claude.py:847-1128`
+- `<legacy-vs-pipeline-root>/claude_agent/test_flow_claude.sh:82-124`
+- `<legacy-vs-pipeline-root>/claude_agent/launch_claude.sh:194-226`
+- `<legacy-vs-pipeline-root>/claude_agent/run_claude.py:847-1128`
 
 ---
 
@@ -336,7 +336,7 @@ Python 包（代码直接 import）：
 ### 9.3 建议的最小安装模板（可执行）
 
 ```bash
-cd /home/sunxiangyu/sunxiangyu/vs_pipeline
+cd <legacy-vs-pipeline-root>
 python -m venv .venv
 source .venv/bin/activate
 pip install -U pip
@@ -367,9 +367,9 @@ python -c "from rdkit import Chem; print('rdkit ok')"
 目标：快速验证链路“可执行且可落盘”。
 
 ```bash
-cd /home/sunxiangyu/sunxiangyu/vs_pipeline
+cd <legacy-vs-pipeline-root>
 bash claude_agent/test_claude.sh
-bash claude_agent/test_flow_claude.sh qwen-397b claude 1 1 1 vs /home/sunxiangyu/sunxiangyu/vs_pipeline/molbench/molbench-vs-30.csv 1
+bash claude_agent/test_flow_claude.sh qwen-397b claude 1 1 1 vs <legacy-vs-pipeline-root>/molbench/molbench-vs-30.csv 1
 ```
 
 说明：
@@ -381,21 +381,21 @@ bash claude_agent/test_flow_claude.sh qwen-397b claude 1 1 1 vs /home/sunxiangyu
 建议按任务串行，不建议直接三任务并发：
 
 ```bash
-cd /home/sunxiangyu/sunxiangyu/vs_pipeline
+cd <legacy-vs-pipeline-root>
 
 # VS
-bash claude_agent/test_flow_claude.sh qwen-397b claude 0 1 1 vs /home/sunxiangyu/sunxiangyu/vs_pipeline/molbench/molbench-vs-30.csv 1
+bash claude_agent/test_flow_claude.sh qwen-397b claude 0 1 1 vs <legacy-vs-pipeline-root>/molbench/molbench-vs-30.csv 1
 
 # AC
-bash claude_agent/test_flow_claude.sh qwen-397b claude 0 1 1 ac /home/sunxiangyu/sunxiangyu/vs_pipeline/molbench/molbench-ac-900.csv 1
+bash claude_agent/test_flow_claude.sh qwen-397b claude 0 1 1 ac <legacy-vs-pipeline-root>/molbench/molbench-ac-900.csv 1
 
 # PF
-bash claude_agent/test_flow_claude.sh qwen-397b claude 0 1 1 pf /home/sunxiangyu/sunxiangyu/vs_pipeline/molbench/molbench-pf-900.csv 1
+bash claude_agent/test_flow_claude.sh qwen-397b claude 0 1 1 pf <legacy-vs-pipeline-root>/molbench/molbench-pf-900.csv 1
 ```
 
 若只跑推理：
 ```bash
-bash claude_agent/launch_claude.sh --run-dataset --task vs --dataset-csv /home/sunxiangyu/sunxiangyu/vs_pipeline/molbench/molbench-vs-900.csv --skills-root /home/sunxiangyu/sunxiangyu/vs_pipeline/skills --results-root /home/sunxiangyu/sunxiangyu/vs_pipeline/results --provider qwen-397b --claude-bin claude --num-rollouts 1 --parallel-rollouts 1 --skip-provider-switch
+bash claude_agent/launch_claude.sh --run-dataset --task vs --dataset-csv <legacy-vs-pipeline-root>/molbench/molbench-vs-900.csv --skills-root <legacy-vs-pipeline-root>/skills --results-root <legacy-vs-pipeline-root>/results --provider qwen-397b --claude-bin claude --num-rollouts 1 --parallel-rollouts 1 --skip-provider-switch
 ```
 
 后处理：
@@ -406,10 +406,10 @@ python claude_agent/trajectory_exporter.py <RESULTS_DIR> --task vs
 
 ### 10.3 关键坑点修复（复现中应先处理）
 
-1. `run_claude.py` 默认 `--dataset-csv=molbench-vs/MolBench-vs-25.csv` 路径在本仓不存在，必须显式传参。  
-2. VS 的 `molclaw-vs` MCP 在最新 run 中 30/30 初始化失败，需优先修复连接性。  
-3. 三任务并发时可能出现 `database is locked`（cc-switch 配置锁）与 `API Error: 502`。  
-4. VS 单样本 timeout 上限 1200s，900 样本全量会非常长。  
+1. `run_claude.py` 默认 `--dataset-csv=molbench-vs/MolBench-vs-25.csv` 路径在本仓不存在，必须显式传参。
+2. VS 的 `molclaw-vs` MCP 在最新 run 中 30/30 初始化失败，需优先修复连接性。
+3. 三任务并发时可能出现 `database is locked`（cc-switch 配置锁）与 `API Error: 502`。
+4. VS 单样本 timeout 上限 1200s，900 样本全量会非常长。
 5. 若 RDKit 缺失，评估会退化字符串匹配（轨迹导出并不会自动拒绝，和文档描述不一致）。
 
 ---
@@ -418,36 +418,36 @@ python claude_agent/trajectory_exporter.py <RESULTS_DIR> --task vs
 
 ### P0（会直接导致复现失败或结果失真）
 
-1. **VS MCP 连接失败（高频）**  
-- 现象：VS run init 中 `mcp_servers=[{"name":"molclaw-vs","status":"failed"}]`。  
+1. **VS MCP 连接失败（高频）**
+- 现象：VS run init 中 `mcp_servers=[{"name":"molclaw-vs","status":"failed"}]`。
 - 证据：`results/molbench_vs_qwen-397b_run_20260512_142732/row0002_idx2/complete_session.jsonl`（init event）。
 - 后果：科学工具链不可用，输出偏向本地文本推理，accepted rate 低。
 - 修复：先做 `test_claude.sh` + 单行 VS smoke；检查 URL、header、网络可达性。
 
-2. **服务端 502 失败（API retry 后终止）**  
+2. **服务端 502 失败（API retry 后终止）**
 - 证据：`results/molbench_vs_qwen-397b_run_20260512_135001/row0001_idx1/complete_session.jsonl:2-13`（连续 retry + 502 result）。
 - 后果：`parse_error=api_error_response`，样本直接无效。
 - 修复：重试策略（批次化、降并发、错峰）、失败样本自动重跑队列。
 
-3. **默认数据集路径无效**  
+3. **默认数据集路径无效**
 - 证据：`run_claude.py:850` 默认 `molbench-vs/MolBench-vs-25.csv`；该目录本地缺失。
 - 后果：直接调用 `run_claude.py` 时启动失败。
 - 修复：统一改成 `molbench/MolBench-vs-25.csv` 或强制参数必填。
 
-4. **并发模式下 cc-switch 锁冲突**  
+4. **并发模式下 cc-switch 锁冲突**
 - 证据：`results/parallel_logs/20260511_150239/*.log` 出现 `database is locked`。
 - 后果：任务未启动即失败。
 - 修复：provider 切换仅执行一次；并行任务全部 `--skip-provider-switch`。
 
-5. **VS 超时比例高（1200s）**  
+5. **VS 超时比例高（1200s）**
 - 证据：`run_summary.jsonl` 统计：`vs 20260512_142732` 超时 9/30，平均 870s。
 - 后果：大量 `parse_error + length_mismatch:0!=60`，有效样本不足。
 - 修复：缩短任务范围、优化 prompt/tool 链、加超时分层策略（早停+续跑）。
 
 ### P1（不一定失败，但会显著影响质量）
 
-1. 文档与代码不一致：文档称 RDKit 缺失会 trajectory 拒绝，代码实际是字符串退化。  
-2. 早期 run 配置缺少 `task` 字段（VS 旧 run），依赖推断逻辑。  
+1. 文档与代码不一致：文档称 RDKit 缺失会 trajectory 拒绝，代码实际是字符串退化。
+2. 早期 run 配置缺少 `task` 字段（VS 旧 run），依赖推断逻辑。
 3. 结果目录规范存在代际差异（部分 run 无 completion/bench/traj）。
 
 ### P2（可维护性/可读性问题）
@@ -471,14 +471,14 @@ python claude_agent/trajectory_exporter.py <RESULTS_DIR> --task vs
 
 ### B. 文档声称但代码未证实/部分不一致
 
-- “RDKit 不可用时 trajectory 样本拒绝”——文档写明，代码未实现该 reject reason。  
-- “三任务并行测试可直接跑”——实际并发失败概率高（502 / database lock）。  
+- “RDKit 不可用时 trajectory 样本拒绝”——文档写明，代码未实现该 reject reason。
+- “三任务并行测试可直接跑”——实际并发失败概率高（502 / database lock）。
 - “仅跑推理示例路径”引用旧目录 `molbench-vs/...`，与当前目录结构不一致。
 
 ### C. 规划/讨论中未落地
 
-- token 治理/上限策略。  
-- 历史结果批量回填导出。  
+- token 治理/上限策略。
+- 历史结果批量回填导出。
 - step-level dense reward（当前仅终点 reward）。
 
 ---
@@ -493,8 +493,8 @@ python claude_agent/trajectory_exporter.py <RESULTS_DIR> --task vs
 
 2. **统一配置与凭据治理（安全+复现）**
 - 当前 `.mcp.json` 与 `launch_claude.sh` 含明文 token：
-  - `/home/sunxiangyu/sunxiangyu/vs_pipeline/.mcp.json:7,14`
-  - `/home/sunxiangyu/sunxiangyu/vs_pipeline/claude_agent/launch_claude.sh:130,138`
+  - `<legacy-vs-pipeline-root>/.mcp.json:7,14`
+  - `<legacy-vs-pipeline-root>/claude_agent/launch_claude.sh:130,138`
 - 建议迁移到环境变量/密钥管理，不进仓库。
 
 3. **修复默认路径与文档漂移**
@@ -537,21 +537,21 @@ python claude_agent/trajectory_exporter.py <RESULTS_DIR> --task vs
 ### 14.1 关键文件索引
 
 - 主文档：
-  - `/home/sunxiangyu/sunxiangyu/vs_pipeline/readme.md`
-  - `/home/sunxiangyu/sunxiangyu/vs_pipeline/ToFix.md`
+  - `<legacy-vs-pipeline-root>/readme.md`
+  - `<legacy-vs-pipeline-root>/ToFix.md`
 - 执行链：
-  - `/home/sunxiangyu/sunxiangyu/vs_pipeline/claude_agent/run_claude.py`
-  - `/home/sunxiangyu/sunxiangyu/vs_pipeline/claude_agent/launch_claude.sh`
-  - `/home/sunxiangyu/sunxiangyu/vs_pipeline/claude_agent/test_flow_claude.sh`
-  - `/home/sunxiangyu/sunxiangyu/vs_pipeline/claude_agent/test_parallel.sh`
+  - `<legacy-vs-pipeline-root>/claude_agent/run_claude.py`
+  - `<legacy-vs-pipeline-root>/claude_agent/launch_claude.sh`
+  - `<legacy-vs-pipeline-root>/claude_agent/test_flow_claude.sh`
+  - `<legacy-vs-pipeline-root>/claude_agent/test_parallel.sh`
 - 导出与评估：
-  - `/home/sunxiangyu/sunxiangyu/vs_pipeline/claude_agent/trajectory_exporter.py`
-  - `/home/sunxiangyu/sunxiangyu/vs_pipeline/evaluate/eval_runner.py`
-  - `/home/sunxiangyu/sunxiangyu/vs_pipeline/evaluate/run_eval_bench.py`
+  - `<legacy-vs-pipeline-root>/claude_agent/trajectory_exporter.py`
+  - `<legacy-vs-pipeline-root>/evaluate/eval_runner.py`
+  - `<legacy-vs-pipeline-root>/evaluate/run_eval_bench.py`
 - 数据：
-  - `/home/sunxiangyu/sunxiangyu/vs_pipeline/molbench/*.csv`
+  - `<legacy-vs-pipeline-root>/molbench/*.csv`
 - 配置：
-  - `/home/sunxiangyu/sunxiangyu/vs_pipeline/.mcp.json`
+  - `<legacy-vs-pipeline-root>/.mcp.json`
 
 ### 14.2 参数索引（核心）
 
@@ -595,13 +595,13 @@ python claude_agent/trajectory_exporter.py <RESULTS_DIR> --task vs
 ### 14.4 代表性 run 索引（建议复查）
 
 - VS（30样本，较新）：
-  - `/home/sunxiangyu/sunxiangyu/vs_pipeline/results/molbench_vs_qwen-397b_run_20260512_142732`
+  - `<legacy-vs-pipeline-root>/results/molbench_vs_qwen-397b_run_20260512_142732`
 - AC（30样本，较新）：
-  - `/home/sunxiangyu/sunxiangyu/vs_pipeline/results/molbench_ac_qwen-397b_run_20260512_142732`
+  - `<legacy-vs-pipeline-root>/results/molbench_ac_qwen-397b_run_20260512_142732`
 - PF（30样本，较新）：
-  - `/home/sunxiangyu/sunxiangyu/vs_pipeline/results/molbench_pf_qwen-397b_run_20260512_142732`
+  - `<legacy-vs-pipeline-root>/results/molbench_pf_qwen-397b_run_20260512_142732`
 - 失败样本（502）：
-  - `/home/sunxiangyu/sunxiangyu/vs_pipeline/results/molbench_vs_qwen-397b_run_20260512_135001/row0001_idx1/complete_session.jsonl`
+  - `<legacy-vs-pipeline-root>/results/molbench_vs_qwen-397b_run_20260512_135001/row0001_idx1/complete_session.jsonl`
 
 ---
 
@@ -633,15 +633,15 @@ python claude_agent/trajectory_exporter.py <RESULTS_DIR> --task vs
 
 ## Phase 5 Iterative Refinement（报告自检）
 
-自检项 1：陌生读者是否可直接上手？  
+自检项 1：陌生读者是否可直接上手？
 - 已补充：环境准备、入口顺序、最小路径、全量路径、失败修复清单。
 
-自检项 2：是否列出前5大复现风险？  
+自检项 2：是否列出前5大复现风险？
 - 已满足：第 11 节 P0 给出 5 项高概率失败点与修复建议。
 
-自检项 3：是否同时给出 Minimal Path 与 Full Path？  
+自检项 3：是否同时给出 Minimal Path 与 Full Path？
 - 已满足：第 10 节。
 
-自检项 4：关键结论是否有证据锚点？  
+自检项 4：关键结论是否有证据锚点？
 - 已尽可能在每节附路径/函数/参数/产物锚点；历史统计给出具体 run 目录与文件名。
 

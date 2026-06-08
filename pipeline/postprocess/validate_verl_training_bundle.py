@@ -115,9 +115,12 @@ def _validate_sft_file(path: Path, errors: list[str]) -> dict[str, Any]:
                             if not isinstance(result.get("short_reason"), str) or not str(result.get("short_reason") or "").strip():
                                 _err(errors, f"{path.name}: row {i} vs short_reason invalid")
                         elif task == "pf":
+                            selected_smiles = result.get("selected_smiles")
                             prediction = result.get("prediction")
-                            if not isinstance(prediction, list) or not any(isinstance(v, str) and v.strip() for v in prediction):
-                                _err(errors, f"{path.name}: row {i} pf prediction invalid")
+                            selected_ok = isinstance(selected_smiles, list) and any(isinstance(v, str) and v.strip() for v in selected_smiles)
+                            prediction_ok = isinstance(prediction, list) and any(isinstance(v, str) and v.strip() for v in prediction)
+                            if not (selected_ok or prediction_ok):
+                                _err(errors, f"{path.name}: row {i} pf selected_smiles invalid")
                             labels = result.get("labels")
                             if labels is not None and not isinstance(labels, list):
                                 _err(errors, f"{path.name}: row {i} pf labels invalid")

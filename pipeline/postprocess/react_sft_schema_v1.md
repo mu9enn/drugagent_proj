@@ -41,10 +41,12 @@ Observation content is encoded as:
 
 ## Cleaning rules
 
-- Keep only `mcp__molclaw-scp__*` tool calls
+- Keep `mcp__molclaw-scp__*` and `mcp__molclaw-vs__*` tool calls
 - Drop non-MCP tools and orphan tool results
 - Strip only outer triple-backtick wrappers
 - Preserve inner content
+- Replace strict local absolute paths rooted at `/root`, `/home`, `/tmp`, `/mnt`, or `/workspace` with stable plain-text `<artifact:...>` placeholders
+- Compress `fpocket_toolkit` observations to a top-pocket summary
 - Keep multi-tool-call sequences by default
 - Split multi-tool-call sequences only when `--split-multi-tool-calls` is enabled
 
@@ -58,9 +60,9 @@ Important audit fields are written to:
 
 The final answer schema is task-aware:
 
-- `ac`: `answer_smiles` / `selected_molecule` / `short_reason` / `evidence`
+- `ac`: `answer_smiles` / `short_reason` / `evidence`
 - `vs`: `ranked_smiles` / `selected_smiles` / `short_reason` / `evidence`
-- `pf`: `prediction` / `labels` / `short_reason` / `evidence`
+- `pf`: `selected_smiles` / `labels`(optional) / `short_reason` / `evidence`
 - `kg` / `e2e`: minimal task answer structure
 
 ## Validation

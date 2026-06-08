@@ -175,6 +175,18 @@ def _load_session_events(session_path: Path) -> list[dict[str, Any]]:
     return events
 
 
+def _session_ends_with_runner_error(session_path: Path) -> bool:
+    if not session_path.is_file():
+        return False
+    last_nonempty = ""
+    with session_path.open("r", encoding="utf-8", errors="ignore") as f:
+        for line in f:
+            stripped = line.strip()
+            if stripped:
+                last_nonempty = stripped
+    return last_nonempty.startswith("[runner-error]")
+
+
 def _sum_counter_by_tool_suffix(counter: Counter[str], tool_suffix: str) -> int:
     total = 0
     for name, cnt in counter.items():
@@ -441,6 +453,7 @@ def export_results_dir(results_dir: Path, task: str | None = None) -> dict[str, 
         parsed = _safe_load_json(s.sample_dir / "parsed_answer.json")
         run_meta = _safe_load_json(s.sample_dir / "run_meta.json")
         session_path = s.sample_dir / "complete_session.jsonl"
+        session_ends_with_runner_error = _session_ends_with_runner_error(session_path)
         timed_out_value = bool(parsed.get("timed_out", False) or run_meta.get("timed_out", False))
         return_code_value = run_meta.get("return_code")
 
@@ -469,10 +482,13 @@ def export_results_dir(results_dir: Path, task: str | None = None) -> dict[str, 
                 reject_reasons.append("timeout")
             if not has_session:
                 reject_reasons.append("missing_session")
+            if session_ends_with_runner_error:
+                reject_reasons.append("runner_error_last_line")
             task_reject_checks = {
                 "return_code": return_code_value,
                 "timed_out": timed_out_value,
                 "has_complete_session": has_session,
+                "session_ends_with_runner_error": session_ends_with_runner_error,
                 "ground_truth_size": len(gt_answers),
                 "prediction_size": len(pred_answers),
             }
@@ -499,11 +515,15 @@ def export_results_dir(results_dir: Path, task: str | None = None) -> dict[str, 
                 reject_reasons.append("timeout")
             if not has_session:
                 reject_reasons.append("missing_session")
+            if session_ends_with_runner_error:
+                reject_reasons.append("runner_error_last_line")
+            accepted = len(reject_reasons) == 0
 
             task_reject_checks = {
                 "return_code": return_code_value,
                 "timed_out": timed_out_value,
                 "has_complete_session": has_session,
+                "session_ends_with_runner_error": session_ends_with_runner_error,
                 "prediction_size": len(pred_answers),
                 "ground_truth_size": len(gt_answers),
             }
@@ -540,12 +560,15 @@ def export_results_dir(results_dir: Path, task: str | None = None) -> dict[str, 
             reject_reasons: list[str] = []
             task_reject_checks: dict[str, Any] = {
                 "parse_error": bool(parse_error),
+                "session_ends_with_runner_error": session_ends_with_runner_error,
                 "ground_truth_size": len(gt_answers),
                 "prediction_size": len(pred_answers),
             }
 
             if parse_error:
                 reject_reasons.append("parse_error")
+            if session_ends_with_runner_error:
+                reject_reasons.append("runner_error_last_line")
 
             if not rdkit_available:
                 cand_canon = [x.strip() for x in candidates if x.strip()]

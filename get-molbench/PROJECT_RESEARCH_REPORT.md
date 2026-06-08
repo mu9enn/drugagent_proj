@@ -1,7 +1,7 @@
 # get-molbench 全量堆叠式深度研究报告（FULL_DUMP）
 
-- PROJECT_ROOT: `/home/sunxiangyu/sunxiangyu/get-molbench`
-- OUTPUT_REPORT: `/home/sunxiangyu/sunxiangyu/get-molbench/PROJECT_RESEARCH_REPORT.md`
+- PROJECT_ROOT: `<mol-pipeline-root>/get-molbench`
+- OUTPUT_REPORT: `<mol-pipeline-root>/get-molbench/PROJECT_RESEARCH_REPORT.md`
 - MODE: `deep`
 - LANGUAGE: `中文`
 - STACK_STYLE: `FULL_DUMP`
@@ -30,9 +30,9 @@
   - 质量门控集中在脚本报错，缺少统一产物校验器与日志化审计。
 
 证据锚点：
-- 仓库结构与声明：`/home/sunxiangyu/sunxiangyu/get-molbench/README.md:5-23`
-- 三入口脚本：`/home/sunxiangyu/sunxiangyu/get-molbench/pipelines/generate_molbench_ac.py:12-55`、`.../generate_molbench_vs.py:12-84`、`.../generate_molbench_pf.py:22-113`
-- 900批处理：`/home/sunxiangyu/sunxiangyu/get-molbench/scripts/generate_molbench_900.py:80-168`
+- 仓库结构与声明：`<mol-pipeline-root>/get-molbench/README.md:5-23`
+- 三入口脚本：`<mol-pipeline-root>/get-molbench/pipelines/generate_molbench_ac.py:12-55`、`.../generate_molbench_vs.py:12-84`、`.../generate_molbench_pf.py:22-113`
+- 900批处理：`<mol-pipeline-root>/get-molbench/scripts/generate_molbench_900.py:80-168`
 
 ---
 
@@ -49,9 +49,9 @@
 7. `outputs/*`（已有产物核验）
 
 证据锚点：
-- `README`: `/home/sunxiangyu/sunxiangyu/get-molbench/README.md:1-77`
-- `docs`: `/home/sunxiangyu/sunxiangyu/get-molbench/docs/rdkit_scripts_and_pf_provenance.md:1-110`
-- 依赖：`/home/sunxiangyu/sunxiangyu/get-molbench/requirements.txt:1-5`、`.../environment.yml:1-9`
+- `README`: `<mol-pipeline-root>/get-molbench/README.md:1-77`
+- `docs`: `<mol-pipeline-root>/get-molbench/docs/rdkit_scripts_and_pf_provenance.md:1-110`
+- 依赖：`<mol-pipeline-root>/get-molbench/requirements.txt:1-5`、`.../environment.yml:1-9`
 
 ### 2.2 调查方法
 
@@ -76,7 +76,7 @@
 
 证据锚点：
 - 文件扫描：`find . -maxdepth 3 -type d`（本地核验）
-- README 声明：`/home/sunxiangyu/sunxiangyu/get-molbench/README.md:5-23`
+- README 声明：`<mol-pipeline-root>/get-molbench/README.md:5-23`
 
 ### 3.2 资产规模
 
@@ -103,10 +103,10 @@
 - `scripts/merge_molbench_pf.py`：合并 PF 三变体
 
 证据锚点：
-- `/home/sunxiangyu/sunxiangyu/get-molbench/pipelines/generate_molbench_ac.py:29-50`
-- `/home/sunxiangyu/sunxiangyu/get-molbench/pipelines/generate_molbench_vs.py:39-80`
-- `/home/sunxiangyu/sunxiangyu/get-molbench/pipelines/generate_molbench_pf.py:15-109`
-- `/home/sunxiangyu/sunxiangyu/get-molbench/scripts/generate_molbench_900.py:80-164`
+- `<mol-pipeline-root>/get-molbench/pipelines/generate_molbench_ac.py:29-50`
+- `<mol-pipeline-root>/get-molbench/pipelines/generate_molbench_vs.py:39-80`
+- `<mol-pipeline-root>/get-molbench/pipelines/generate_molbench_pf.py:15-109`
+- `<mol-pipeline-root>/get-molbench/scripts/generate_molbench_900.py:80-164`
 
 ---
 
@@ -132,9 +132,9 @@
 - 标签来源：RDKit 计算属性或 Morgan 指纹相似度。
 
 证据锚点：
-- 任务说明：`/home/sunxiangyu/sunxiangyu/get-molbench/README.md:26-43`
-- PF provenance：`/home/sunxiangyu/sunxiangyu/get-molbench/docs/rdkit_scripts_and_pf_provenance.md:5-29`
-- 核心实现：`/home/sunxiangyu/sunxiangyu/get-molbench/scripts/generate_dataset_ACNet_v0.2.py`、`.../generate_molbench_vs.py`、`.../make_rdkit_benchmark_v0.py`、`.../make_rdkit_benchmark_v1.py`、`.../molecular_similiar.py`
+- 任务说明：`<mol-pipeline-root>/get-molbench/README.md:26-43`
+- PF provenance：`<mol-pipeline-root>/get-molbench/docs/rdkit_scripts_and_pf_provenance.md:5-29`
+- 核心实现：`<mol-pipeline-root>/get-molbench/scripts/generate_dataset_ACNet_v0.2.py`、`.../generate_molbench_vs.py`、`.../make_rdkit_benchmark_v0.py`、`.../make_rdkit_benchmark_v1.py`、`.../molecular_similiar.py`
 
 ### 4.1 MolBench-AC：任务定义与样本生成机制
 
@@ -152,12 +152,12 @@
 5. 根据问法方向与 `Ki_1/Ki_2` 比较关系确定 `answer`（必须是 `s1` 或 `s2` 之一）。
 
 证据锚点：
-- 逻辑主链：`/home/sunxiangyu/sunxiangyu/get-molbench/scripts/generate_dataset_ACNet_v0.2.py:53-115`
+- 逻辑主链：`<mol-pipeline-root>/get-molbench/scripts/generate_dataset_ACNet_v0.2.py:53-115`
 - 问法与答案判定：`.../generate_dataset_ACNet_v0.2.py:13-39`
 - 输出落盘：`.../generate_dataset_ACNet_v0.2.py:137-145`
 
 真实样例（来自产物）：
-- 文件：`/home/sunxiangyu/sunxiangyu/get-molbench/outputs/ac/molbench-ac-25.csv`（第1行抽样）
+- 文件：`<mol-pipeline-root>/get-molbench/outputs/ac/molbench-ac-25.csv`（第1行抽样）
 - 关键字段：
   - `target = Phosphodiesterase 5A`
   - `k1 = 0.21`, `k2 = 24.7`
@@ -190,12 +190,12 @@
    - `n_active`
 
 证据锚点：
-- 过滤与可行性：`/home/sunxiangyu/sunxiangyu/get-molbench/scripts/generate_molbench_vs.py:167-200`
+- 过滤与可行性：`<mol-pipeline-root>/get-molbench/scripts/generate_molbench_vs.py:167-200`
 - cluster 抽样与回填：`.../generate_molbench_vs.py:204-217,233-249`
 - 单题构造：`.../generate_molbench_vs.py:82-154`
 
 真实样例（来自产物）：
-- 文件：`/home/sunxiangyu/sunxiangyu/get-molbench/outputs/vs/molbench-vs-25.csv`（第1行抽样）
+- 文件：`<mol-pipeline-root>/get-molbench/outputs/vs/molbench-vs-25.csv`（第1行抽样）
 - 关键字段：
   - `target_chembl_id = CHEMBL1868`
   - `n_candidates = 60`
@@ -222,9 +222,9 @@ PF 在本仓库里有两类不同认知负载：
 - 难度由 top1-top2 相似度 gap 分级（easy/medium/hard）。
 
 证据锚点：
-- v0：`/home/sunxiangyu/sunxiangyu/get-molbench/scripts/make_rdkit_benchmark_v0.py:29-212`
-- v1：`/home/sunxiangyu/sunxiangyu/get-molbench/scripts/make_rdkit_benchmark_v1.py:30-267`
-- similarity：`/home/sunxiangyu/sunxiangyu/get-molbench/scripts/molecular_similiar.py:33-159`
+- v0：`<mol-pipeline-root>/get-molbench/scripts/make_rdkit_benchmark_v0.py:29-212`
+- v1：`<mol-pipeline-root>/get-molbench/scripts/make_rdkit_benchmark_v1.py:30-267`
+- similarity：`<mol-pipeline-root>/get-molbench/scripts/molecular_similiar.py:33-159`
 
 v0/v1 样本构造细节：
 1. 从同一 assay 采样 10 个分子。
@@ -240,11 +240,11 @@ similarity 样本构造细节：
 4. 固定选 top1 作为 `answer`，按 gap 打难度标签。
 
 真实样例（来自产物）：
-- v1 样例文件：`/home/sunxiangyu/sunxiangyu/get-molbench/outputs/pf/v1/molbench-pf-300.csv`（第1行抽样）
+- v1 样例文件：`<mol-pipeline-root>/get-molbench/outputs/pf/v1/molbench-pf-300.csv`（第1行抽样）
   - `selected_count=5`, `attempts=2`
   - 约束示例：`RingCount >= 1.0`、`HeavyAtoms >= 11.2`
   - `answer` 为 5 行 SMILES
-- similarity 样例文件：`/home/sunxiangyu/sunxiangyu/get-molbench/outputs/pf/similarity/molbench-pf-300.csv`（第1行抽样）
+- similarity 样例文件：`<mol-pipeline-root>/get-molbench/outputs/pf/similarity/molbench-pf-300.csv`（第1行抽样）
   - `task_type = morgan`, `difficulty = hard`, `gap = 0.062`
   - `answer` 为单一 SMILES
 
@@ -264,7 +264,7 @@ similarity 样本构造细节：
 - 输出命名目标一致：`molbench-<task>-<N>.csv`（VS 通过 pipeline 完成重命名）。
 
 证据锚点：
-- AC pipeline：`/home/sunxiangyu/sunxiangyu/get-molbench/pipelines/generate_molbench_ac.py:36-51`
+- AC pipeline：`<mol-pipeline-root>/get-molbench/pipelines/generate_molbench_ac.py:36-51`
 - VS pipeline：`.../generate_molbench_vs.py:45-80`
 - PF pipeline：`.../generate_molbench_pf.py:56-109`
 
@@ -276,13 +276,13 @@ similarity 样本构造细节：
 - similarity 若不足 300，`_expand_to_rows` 通过重采样扩容到 300。
 
 证据锚点：
-- `/home/sunxiangyu/sunxiangyu/get-molbench/scripts/generate_molbench_900.py:18-58`
-- `/home/sunxiangyu/sunxiangyu/get-molbench/scripts/generate_molbench_900.py:60-77`
-- `/home/sunxiangyu/sunxiangyu/get-molbench/scripts/generate_molbench_900.py:101-162`
+- `<mol-pipeline-root>/get-molbench/scripts/generate_molbench_900.py:18-58`
+- `<mol-pipeline-root>/get-molbench/scripts/generate_molbench_900.py:60-77`
+- `<mol-pipeline-root>/get-molbench/scripts/generate_molbench_900.py:101-162`
 
 专家级风险注释：
 - similarity 扩容能保证“行数”，但不保证“化学多样性”；实测 300 行只有 8 个 unique prompt，需谨慎直接用于训练。
-- 证据：`/home/sunxiangyu/sunxiangyu/get-molbench/outputs/pf/similarity/molbench-pf-300.csv`（统计结果：`unique_prompt=8`）。
+- 证据：`<mol-pipeline-root>/get-molbench/outputs/pf/similarity/molbench-pf-300.csv`（统计结果：`unique_prompt=8`）。
 
 ---
 
@@ -300,9 +300,9 @@ similarity 样本构造细节：
 | similarity 严格约束下样本可能不足并需补齐 | 文档 note + 900脚本 `_expand_to_rows` | 有空文件/失败案例 + 300行仅8 unique prompt | A 已实现但质量风险高 |
 
 证据锚点：
-- README 对应：`/home/sunxiangyu/sunxiangyu/get-molbench/README.md:44-61,75-77`
+- README 对应：`<mol-pipeline-root>/get-molbench/README.md:44-61,75-77`
 - 代码对应：上述各脚本行号
-- 产物对应：`/home/sunxiangyu/sunxiangyu/get-molbench/outputs/...`
+- 产物对应：`<mol-pipeline-root>/get-molbench/outputs/...`
 
 ---
 
@@ -473,7 +473,7 @@ python scripts/merge_molbench_pf.py --v0-csv ... --v1-csv ... --similarity-csv .
 ```
 
 证据锚点：
-- `README` 命令区：`/home/sunxiangyu/sunxiangyu/get-molbench/README.md:24-69`
+- `README` 命令区：`<mol-pipeline-root>/get-molbench/README.md:24-69`
 
 ---
 
@@ -488,20 +488,20 @@ python scripts/merge_molbench_pf.py --v0-csv ... --v1-csv ... --similarity-csv .
   - `rdkit>=2023.9`
   - `openpyxl>=3.1,<4.0`
 
-证据：`/home/sunxiangyu/sunxiangyu/get-molbench/environment.yml:1-9`、`.../requirements.txt:1-5`
+证据：`<mol-pipeline-root>/get-molbench/environment.yml:1-9`、`.../requirements.txt:1-5`
 
 ### 9.2 安装命令
 
 Conda 方式（推荐）：
 ```bash
-cd /home/sunxiangyu/sunxiangyu/get-molbench
+cd <mol-pipeline-root>/get-molbench
 conda env create -f environment.yml
 conda activate get-molbench
 ```
 
 Pip 方式：
 ```bash
-cd /home/sunxiangyu/sunxiangyu/get-molbench
+cd <mol-pipeline-root>/get-molbench
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
@@ -523,7 +523,7 @@ pip install -r requirements.txt
 > 目标：快速验证 AC/VS/PF-v0/v1 可跑通，并产出标准 CSV。
 
 ```bash
-cd /home/sunxiangyu/sunxiangyu/get-molbench
+cd <mol-pipeline-root>/get-molbench
 python pipelines/generate_molbench_ac.py --n-cases 3 --seed 100 --out-dir outputs/smoke/ac
 python pipelines/generate_molbench_vs.py --n-cases 3 --seed 42 --out-dir outputs/smoke/vs --no-remote-target-name
 python pipelines/generate_molbench_pf.py --variant v0 --n-cases 3 --seed 42 --out-dir outputs/smoke/pf_v0
@@ -539,7 +539,7 @@ python pipelines/generate_molbench_pf.py --variant v1 --n-cases 3 --seed 42 --ou
 ### 10.2 Full Path（全量复现路径）
 
 ```bash
-cd /home/sunxiangyu/sunxiangyu/get-molbench
+cd <mol-pipeline-root>/get-molbench
 python scripts/generate_molbench_900.py
 ```
 
@@ -699,18 +699,18 @@ PY
 
 ### 14.1 关键文件索引
 
-- `/home/sunxiangyu/sunxiangyu/get-molbench/README.md`
-- `/home/sunxiangyu/sunxiangyu/get-molbench/docs/rdkit_scripts_and_pf_provenance.md`
-- `/home/sunxiangyu/sunxiangyu/get-molbench/pipelines/generate_molbench_ac.py`
-- `/home/sunxiangyu/sunxiangyu/get-molbench/pipelines/generate_molbench_vs.py`
-- `/home/sunxiangyu/sunxiangyu/get-molbench/pipelines/generate_molbench_pf.py`
-- `/home/sunxiangyu/sunxiangyu/get-molbench/scripts/generate_dataset_ACNet_v0.2.py`
-- `/home/sunxiangyu/sunxiangyu/get-molbench/scripts/generate_molbench_vs.py`
-- `/home/sunxiangyu/sunxiangyu/get-molbench/scripts/make_rdkit_benchmark_v0.py`
-- `/home/sunxiangyu/sunxiangyu/get-molbench/scripts/make_rdkit_benchmark_v1.py`
-- `/home/sunxiangyu/sunxiangyu/get-molbench/scripts/molecular_similiar.py`
-- `/home/sunxiangyu/sunxiangyu/get-molbench/scripts/generate_molbench_900.py`
-- `/home/sunxiangyu/sunxiangyu/get-molbench/scripts/merge_molbench_pf.py`
+- `<mol-pipeline-root>/get-molbench/README.md`
+- `<mol-pipeline-root>/get-molbench/docs/rdkit_scripts_and_pf_provenance.md`
+- `<mol-pipeline-root>/get-molbench/pipelines/generate_molbench_ac.py`
+- `<mol-pipeline-root>/get-molbench/pipelines/generate_molbench_vs.py`
+- `<mol-pipeline-root>/get-molbench/pipelines/generate_molbench_pf.py`
+- `<mol-pipeline-root>/get-molbench/scripts/generate_dataset_ACNet_v0.2.py`
+- `<mol-pipeline-root>/get-molbench/scripts/generate_molbench_vs.py`
+- `<mol-pipeline-root>/get-molbench/scripts/make_rdkit_benchmark_v0.py`
+- `<mol-pipeline-root>/get-molbench/scripts/make_rdkit_benchmark_v1.py`
+- `<mol-pipeline-root>/get-molbench/scripts/molecular_similiar.py`
+- `<mol-pipeline-root>/get-molbench/scripts/generate_molbench_900.py`
+- `<mol-pipeline-root>/get-molbench/scripts/merge_molbench_pf.py`
 
 ### 14.2 参数索引（核心）
 

@@ -84,7 +84,7 @@ python pipeline/postprocess/validate_verl_training_bundle.py \
 One-shot build + validate + tar:
 
 ```bash
-bash scripts/build_verl_bundle.sh
+`scripts/build_verl_bundle.sh` has been removed. Invoke `export_verl_training_bundle.py` and `validate_verl_training_bundle.py` explicitly when this optional legacy handoff is needed.
 ```
 
 ## Out of Scope

@@ -24,6 +24,7 @@ CLAUDE_BIN="${CLAUDE_BIN:-claude}"
 PYTHON_BIN="${PYTHON_BIN:-python}"
 SKIP_PROVIDER_SWITCH=0
 SKIP_MCP_VERIFY=0
+TASK_TIMEOUT_SEC="${TASK_TIMEOUT_SEC:-3600}"
 
 # Allow env override; task defaults are filled later if empty.
 MCP_SERVER_NAME="${MCP_SERVER_NAME:-}"
@@ -111,6 +112,7 @@ Shared options:
   --system-prompt-file NAME
   --provider ID                 (default: manual; set model via external cc-switch)
   --claude-bin PATH_OR_NAME     (default: claude)
+  TASK_TIMEOUT_SEC env          Single-sample timeout seconds (default: 3600)
   --skip-provider-switch
   --skip-mcp-verify
 EOF
@@ -133,31 +135,31 @@ if [[ "$TASK" == "vs" ]]; then
   : "${SYSTEM_PROMPT_FILE:=system_prompt_result.md}"
   : "${DATASET_CSV:=$REPO_DIR/molbench/molbench-vs-900.csv}"
   : "${MCP_SERVER_NAME:=${MOLCLAW_VS_MCP_SERVER_NAME:-molclaw-vs}}"
-  : "${MCP_SERVER_URL:=${MOLCLAW_VS_MCP_URL:-https://birth-lopez-hughes-need.trycloudflare.com/mcp}}"
-  : "${MCP_SERVER_AUTH:=${MOLCLAW_VS_MCP_AUTH:-69b4187c504e859d6bce5157bd7434568a70fc4bd7929bb31fe7bb4404a3f873}}"
+  : "${MCP_SERVER_URL:=${MOLCLAW_VS_MCP_URL:-}}"
+  : "${MCP_SERVER_AUTH:=${MOLCLAW_VS_MCP_AUTH:-}}"
   : "${MCP_SERVER_AUTH_HEADER:=${MOLCLAW_VS_MCP_AUTH_HEADER:-X-MCP-AUTH}}"
 elif [[ "$TASK" == "e2e" ]]; then
   : "${SKILLS_ROOT:=skills/skills_full}"
   : "${SYSTEM_PROMPT_FILE:=system_prompt_FULL.md}"
   : "${DATASET_CSV:=$REPO_DIR/molbench/MolBench-E2E/e2e_dataset.csv}"
   : "${MCP_SERVER_NAME:=${MOLCLAW_SCP_MCP_SERVER_NAME:-molclaw-scp}}"
-  : "${MCP_SERVER_URL:=${MOLCLAW_SCP_MCP_URL:-http://180.184.86.2:32208/mcp}}"
-  : "${MCP_SERVER_AUTH:=${MOLCLAW_SCP_MCP_AUTH:-sk-a0033dde-b3cd-413b-adbe-980bc78d6126}}"
+  : "${MCP_SERVER_URL:=${MOLCLAW_SCP_MCP_URL:-}}"
+  : "${MCP_SERVER_AUTH:=${MOLCLAW_SCP_MCP_AUTH:-}}"
   : "${MCP_SERVER_AUTH_HEADER:=${MOLCLAW_SCP_MCP_AUTH_HEADER:-SCP-HUB-API-KEY}}"
 elif [[ "$TASK" == "kg" ]]; then
   : "${SKILLS_ROOT:=skills/skills_full}"
   : "${SYSTEM_PROMPT_FILE:=system_prompt_FULL.md}"
   : "${MCP_SERVER_NAME:=${MOLCLAW_SCP_MCP_SERVER_NAME:-molclaw-scp}}"
-  : "${MCP_SERVER_URL:=${MOLCLAW_SCP_MCP_URL:-http://180.184.86.2:32208/mcp}}"
-  : "${MCP_SERVER_AUTH:=${MOLCLAW_SCP_MCP_AUTH:-sk-a0033dde-b3cd-413b-adbe-980bc78d6126}}"
+  : "${MCP_SERVER_URL:=${MOLCLAW_SCP_MCP_URL:-}}"
+  : "${MCP_SERVER_AUTH:=${MOLCLAW_SCP_MCP_AUTH:-}}"
   : "${MCP_SERVER_AUTH_HEADER:=${MOLCLAW_SCP_MCP_AUTH_HEADER:-SCP-HUB-API-KEY}}"
 else
   : "${SKILLS_ROOT:=skills/skills_full}"
   : "${SYSTEM_PROMPT_FILE:=system_prompt_FULL.md}"
   : "${DATASET_CSV:=$REPO_DIR/molbench/molbench-${TASK}-900.csv}"
   : "${MCP_SERVER_NAME:=${MOLCLAW_SCP_MCP_SERVER_NAME:-molclaw-scp}}"
-  : "${MCP_SERVER_URL:=${MOLCLAW_SCP_MCP_URL:-http://180.184.86.2:32208/mcp}}"
-  : "${MCP_SERVER_AUTH:=${MOLCLAW_SCP_MCP_AUTH:-sk-a0033dde-b3cd-413b-adbe-980bc78d6126}}"
+  : "${MCP_SERVER_URL:=${MOLCLAW_SCP_MCP_URL:-}}"
+  : "${MCP_SERVER_AUTH:=${MOLCLAW_SCP_MCP_AUTH:-}}"
   : "${MCP_SERVER_AUTH_HEADER:=${MOLCLAW_SCP_MCP_AUTH_HEADER:-SCP-HUB-API-KEY}}"
 fi
 
@@ -296,7 +298,7 @@ printf '%s\n' "$PROMPT_TEXT" > "$WORKDIR/prompt.txt"
 set +e
 (
   cd "$WORKDIR" || exit 1
-  "$CLAUDE_BIN" \
+  timeout "$TASK_TIMEOUT_SEC" "$CLAUDE_BIN" \
     --dangerously-skip-permissions \
     --verbose \
     --output-format stream-json \
@@ -306,8 +308,11 @@ set +e
 ) > "$WORKDIR/complete_session.jsonl" 2>&1
 RC=$?
 set -e
+if [[ "$RC" -eq 124 ]]; then
+  printf '[runner-error] task timed out after %s seconds\n' "$TASK_TIMEOUT_SEC" >> "$WORKDIR/complete_session.jsonl"
+fi
 
-"$PYTHON_BIN" - "$WORKDIR" "$PROVIDER" "$CLAUDE_BIN" "$RC" <<'PY'
+"$PYTHON_BIN" - "$WORKDIR" "$PROVIDER" "$CLAUDE_BIN" "$RC" "$TASK_TIMEOUT_SEC" <<'PY'
 import json
 import sys
 from datetime import datetime
@@ -317,13 +322,15 @@ workdir = Path(sys.argv[1]).resolve()
 provider = sys.argv[2]
 claude_bin = sys.argv[3]
 rc = int(sys.argv[4])
+timeout_sec = int(sys.argv[5])
 meta = {
     "timestamp": datetime.now().isoformat(),
     "provider": provider,
     "claude_bin": claude_bin,
     "workdir": str(workdir),
     "return_code": rc,
-    "timed_out": False,
+    "timed_out": rc == 124,
+    "timeout_sec": timeout_sec,
 }
 (workdir / "run_meta.json").write_text(
     json.dumps(meta, ensure_ascii=False, indent=2),

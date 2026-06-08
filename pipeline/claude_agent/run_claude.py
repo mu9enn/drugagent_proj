@@ -24,7 +24,20 @@ ANSWER_RE = re.compile(r"<answer>([\s\S]*?)</answer>", re.IGNORECASE)
 SOLUTION_RE = re.compile(r"<solution>([\s\S]*?)</solution>", re.IGNORECASE)
 SMILES_LINE_RE = re.compile(r"^[A-Za-z0-9@+\-\[\]\(\)=#$\\/%.]+$")
 SMILES_TOKEN_RE = re.compile(r"[A-Za-z0-9@+\-\[\]\(\)=#$\\/%.]{6,}")
-TASK_TIMEOUT_SEC = 20 * 60
+
+
+def _default_task_timeout_sec() -> int:
+    raw = os.environ.get("TASK_TIMEOUT_SEC", "").strip()
+    if not raw:
+        return 60 * 60
+    try:
+        value = int(raw)
+    except ValueError:
+        return 60 * 60
+    return max(1, value)
+
+
+TASK_TIMEOUT_SEC = _default_task_timeout_sec()
 
 
 @dataclass
@@ -775,7 +788,7 @@ def _run_single_rollout(
     (workdir / "prompt.txt").write_text(prompt, encoding="utf-8")
 
     session_path = workdir / "complete_session.jsonl"
-    timeout_sec = None if task in {"e2e", "kg"} else TASK_TIMEOUT_SEC
+    timeout_sec = TASK_TIMEOUT_SEC
     expected_mcp_servers = _load_expected_mcp_servers(mcp_config_file)
     enforce_mcp_ready = bool(expected_mcp_servers)
     max_ready_retries = max(0, int(os.environ.get("CLAUDE_MCP_READY_RETRIES", "2")))
@@ -845,8 +858,9 @@ def _run_single_rollout(
         answer_block = ""
         raw_answer_len = 0
     if cli_meta.get("timed_out"):
+        actual_timeout_sec = cli_meta.get("timeout_sec", TASK_TIMEOUT_SEC)
         parsed_answer = []
-        parse_error = f"timeout after {TASK_TIMEOUT_SEC} seconds"
+        parse_error = f"timeout after {actual_timeout_sec} seconds"
         parse_source = "timeout"
         parse_attempts = [{"source": "timeout", "error": parse_error, "count": 0}]
         answer_block = ""

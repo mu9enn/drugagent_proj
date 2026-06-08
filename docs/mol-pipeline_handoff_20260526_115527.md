@@ -8,7 +8,7 @@
 ## 1) 已确认事实（代码与目录现状）
 
 ## 1.1 目录结构（当前真实状态）
-- 根目录：`/home/sunxiangyu/sunxiangyu/mol-pipeline`
+- 根目录：`<mol-pipeline-root>`
 - 子项目：
   - `get-molbench/`
   - `ms_pipeline/`（已取代旧命名 `vs_pipeline`）
@@ -317,7 +317,7 @@ E2E 特殊行为：
 
 ## 12) 快速事实索引（接手时常查）
 
-- 项目根：`/home/sunxiangyu/sunxiangyu/mol-pipeline`
+- 项目根：`<mol-pipeline-root>`
 - 一键 AC/VS/PF：`bash scripts/run_molbench_workflow.sh --seed <S> --n-cases <N>`
 - E2E 8题全跑：`bash e2e_pipeline/run_e2e_pipeline.sh`
 - molclaw 扫描：`python ms_pipeline/scan_molclaw_usage.py ...`

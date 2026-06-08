@@ -22,16 +22,22 @@ DEFAULT_SYSTEM_PROMPT = (
     "write MCP calls in <tool_call>...</tool_call>, "
     "write tool observations in <observation tool_name=\"...\">...</observation>, "
     "and write the final response in <final_answer>...</final_answer>. "
-    "Use only real molclaw-scp MCP tools and do not fabricate tool outputs."
+    "Use only real MolClaw MCP tools and do not fabricate tool outputs."
 )
 DEFAULT_OBSERVATION_MAX_CHARS = 6000
-TOOL_PREFIX = "mcp__molclaw-scp__"
+TARGET_MCP_PREFIXES = (
+    "mcp__molclaw-scp__",
+    "mcp__molclaw-vs__",
+)
 
 TRIPLE_FENCE_RE = re.compile(r"^\s*```(?:[^\n`]*)\n([\s\S]*?)\n```\s*$")
 OBS_TAG_RE = re.compile(r"<observation\s+tool_name=\"([^\"]+)\">([\s\S]*?)</observation>")
 THOUGHT_TAG_RE = re.compile(r"<thought>([\s\S]*?)</thought>")
 TOOL_CALL_TAG_RE = re.compile(r"<tool_call>([\s\S]*?)</tool_call>")
 FINAL_TAG_RE = re.compile(r"<final_answer>([\s\S]*?)</final_answer>")
+ABS_PATH_RE = re.compile(r"/(?:root|home|tmp|mnt|workspace)/(?:[^\s\"'<>`\[\]{}(),;]+)?")
+ARTIFACT_LINK_RE = re.compile(r"\[artifact:([^\]]+)\]\(artifact:[^)]+\)")
+ARTIFACT_TEXT_RE = re.compile(r"<artifact:[^>]+>")
 
 ENGINEERING_HINTS = (
     "repo",
@@ -145,6 +151,80 @@ def _preview_text(text: str, limit: int = 160) -> str:
     return s[: limit - 3] + "..."
 
 
+def _artifact_placeholder_for_path(path: str) -> str:
+    raw = str(path or "").strip()
+    if not raw:
+        return "<artifact:local/result>"
+    try:
+        base = Path(raw).name.strip()
+    except Exception:
+        base = ""
+    if not base or base in {".", ".."}:
+        base = "result"
+
+    raw_low = raw.lower()
+    base_low = base.lower()
+    ext = Path(base).suffix.lower()
+
+    if "fpocket" in raw_low:
+        if not base or base_low in {"", "result", "results", "output", "outputs", "run", "rundir", "run_dir", "output_dir"} or "." not in base:
+            base = "result"
+        return f"<artifact:fpocket/{base}>"
+    if any(tok in raw_low for tok in ("pdbfixer", "fixed_pdb", "fix_pdb")):
+        return f"<artifact:pdbfixer/{base}>"
+    if any(tok in raw_low for tok in ("docking", "exp_data")):
+        return f"<artifact:docking/{base}>"
+    if any(tok in raw_low for tok in ("boltz2", "boltz")):
+        return f"<artifact:boltz/{base}>"
+    if (
+        ext in {".pdb", ".cif", ".mmcif", ".pdbqt", ".ent", ".gro", ".mol", ".mol2", ".sdf"}
+        or "protein_structure" in raw_low
+        or "protein_structures" in raw_low
+    ):
+        return f"<artifact:protein_structures/{base}>"
+    return f"<artifact:local/{base}>"
+
+
+def _sanitize_text_with_artifacts(text: Any, path_cache: dict[str, str]) -> str:
+    s = str(text or "")
+    if not s:
+        return ""
+
+    # Normalize historical markdown artifacts before protecting pure artifacts.
+    s = ARTIFACT_LINK_RE.sub(lambda match: f"<artifact:{match.group(1)}>", s)
+    protected: list[str] = []
+
+    def _protect(match: re.Match[str]) -> str:
+        protected.append(match.group(0))
+        return f"__ARTIFACT_PLACEHOLDER_{len(protected) - 1}__"
+
+    s = ARTIFACT_TEXT_RE.sub(_protect, s)
+
+    def _replace(match: re.Match[str]) -> str:
+        raw_path = match.group(0)
+        if raw_path not in path_cache:
+            path_cache[raw_path] = _artifact_placeholder_for_path(raw_path)
+        return path_cache[raw_path]
+
+    s = ABS_PATH_RE.sub(_replace, s)
+
+    for idx, original in enumerate(protected):
+        s = s.replace(f"__ARTIFACT_PLACEHOLDER_{idx}__", original)
+    return s
+
+
+def _sanitize_structure_with_artifacts(value: Any, path_cache: dict[str, str]) -> Any:
+    if isinstance(value, str):
+        return _sanitize_text_with_artifacts(value, path_cache)
+    if isinstance(value, list):
+        return [_sanitize_structure_with_artifacts(v, path_cache) for v in value]
+    if isinstance(value, tuple):
+        return [_sanitize_structure_with_artifacts(v, path_cache) for v in value]
+    if isinstance(value, dict):
+        return {k: _sanitize_structure_with_artifacts(v, path_cache) for k, v in value.items()}
+    return value
+
+
 def _record_action(
     actions: list[dict[str, Any]],
     *,
@@ -201,6 +281,7 @@ def _clean_text_piece(
     sample_id: str,
     field_path: str,
     allow_engineering_drop: bool,
+    path_cache: dict[str, str],
 ) -> tuple[str | None, bool]:
     if text is None:
         return None, False
@@ -209,32 +290,21 @@ def _clean_text_piece(
         return None, False
 
     s2, fence_stripped = _strip_triple_backtick_fence(s, actions=actions, sample_id=sample_id, field_path=field_path)
-    changed = fence_stripped
-    cleaned = s2.strip()
+    cleaned = _sanitize_text_with_artifacts(s2.strip(), path_cache)
+    changed = fence_stripped or cleaned != s.strip()
     if not cleaned:
         return None, changed
-
-    if allow_engineering_drop and _looks_engineering_chatter(cleaned):
-        _record_action(
-            actions,
-            sample_id=sample_id,
-            field_path=field_path,
-            cleaning_type="drop_engineering_chatter",
-            before_preview=cleaned,
-            after_preview="",
-            original_backed_up=True,
-        )
-        return None, True
 
     return cleaned, changed
 
 
-def _normalize_tool_name(raw_name: str) -> tuple[str | None, bool]:
+def _normalize_tool_name(raw_name: str) -> tuple[str | None, str | None]:
     raw_name = str(raw_name or "").strip()
-    if not raw_name.startswith(TOOL_PREFIX):
-        return None, False
-    norm = raw_name[len(TOOL_PREFIX) :].strip()
-    return (norm or raw_name), True
+    for prefix in TARGET_MCP_PREFIXES:
+        if raw_name.startswith(prefix):
+            norm = raw_name[len(prefix) :].strip()
+            return (norm or raw_name), prefix.removeprefix("mcp__").removesuffix("__")
+    return None, None
 
 
 def _extract_pointer_map(value: Any) -> dict[str, str]:
@@ -362,6 +432,315 @@ def _normalize_string_list(value: Any) -> list[str]:
     return []
 
 
+def _coerce_number(value: Any) -> float | int | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return value
+    if isinstance(value, str):
+        s = value.strip()
+        if not s:
+            return None
+        try:
+            num = float(s)
+        except Exception:
+            return None
+        if num.is_integer():
+            return int(num)
+        return num
+    return None
+
+
+def _coerce_triplet(value: Any) -> list[float | int] | None:
+    if isinstance(value, (list, tuple)) and len(value) >= 3:
+        out: list[float | int] = []
+        for item in value[:3]:
+            num = _coerce_number(item)
+            if num is None:
+                return None
+            out.append(num)
+        return out
+    return None
+
+
+def _first_nonempty_text(*values: Any) -> str:
+    for value in values:
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+        if value is not None and not isinstance(value, (dict, list, tuple)):
+            s = str(value).strip()
+            if s:
+                return s
+    return ""
+
+
+def _maybe_parse_json(value: Any) -> Any:
+    if isinstance(value, str):
+        s = value.strip()
+        if not s:
+            return value
+        try:
+            return json.loads(s)
+        except Exception:
+            return value
+    return value
+
+
+def _fpocket_candidate_list(value: Any) -> list[dict[str, Any]]:
+    keys = (
+        "top_pocket",
+        "best_pocket",
+        "selected_pocket",
+        "pocket",
+        "pockets",
+        "pocket_list",
+        "pocket_results",
+        "pocket_candidates",
+        "results",
+        "cavities",
+        "sites",
+    )
+
+    def _looks_like_pocket_dict(obj: dict[str, Any]) -> bool:
+        return any(
+            k in obj
+            for k in (
+                "center",
+                "pocket_center",
+                "center_x",
+                "pocket_center_x",
+                "size",
+                "pocket_size",
+                "size_x",
+                "pocket_size_x",
+                "score",
+                "druggability_score",
+                "probability",
+                "chains",
+                "chain_ids",
+                "involved_chains",
+                "residues",
+            )
+        )
+
+    if isinstance(value, dict):
+        for key in keys:
+            cand = value.get(key)
+            if isinstance(cand, dict) and _looks_like_pocket_dict(cand):
+                return [cand]
+            if isinstance(cand, list):
+                pockets = [item for item in cand if isinstance(item, dict) and _looks_like_pocket_dict(item)]
+                if pockets:
+                    return pockets
+        for nested in value.values():
+            pockets = _fpocket_candidate_list(nested)
+            if pockets:
+                return pockets
+    elif isinstance(value, list):
+        pockets = [item for item in value if isinstance(item, dict) and _looks_like_pocket_dict(item)]
+        if pockets:
+            return pockets
+        for nested in value:
+            pockets = _fpocket_candidate_list(nested)
+            if pockets:
+                return pockets
+    return []
+
+
+def _fpocket_extract_count(value: Any) -> int | None:
+    if isinstance(value, dict):
+        for key in ("pocket_count", "nb_pockets", "num_pockets", "pockets_number", "n_pockets"):
+            num = _coerce_number(value.get(key))
+            if isinstance(num, int):
+                return int(num)
+        pockets = _fpocket_candidate_list(value)
+        if pockets:
+            return len(pockets)
+        for nested in value.values():
+            cnt = _fpocket_extract_count(nested)
+            if cnt is not None:
+                return cnt
+    elif isinstance(value, list):
+        pockets = [item for item in value if isinstance(item, dict)]
+        if pockets:
+            return len(pockets)
+        for nested in value:
+            cnt = _fpocket_extract_count(nested)
+            if cnt is not None:
+                return cnt
+    return None
+
+
+def _fpocket_extract_chain_list(value: Any) -> list[str]:
+    chains = _normalize_string_list(value)
+    if chains:
+        return list(dict.fromkeys(chains))
+    if isinstance(value, dict):
+        for key in ("chains", "chain_ids", "involved_chains", "chain_list"):
+            chains = _normalize_string_list(value.get(key))
+            if chains:
+                return list(dict.fromkeys(chains))
+        residues = value.get("residues") or value.get("residue_ids") or value.get("pocket_residues")
+        if isinstance(residues, list):
+            out: list[str] = []
+            for item in residues:
+                if isinstance(item, dict):
+                    chain = _first_nonempty_text(item.get("chain"), item.get("chain_id"), item.get("chain_name"))
+                    if chain:
+                        out.append(chain)
+                elif isinstance(item, str):
+                    m = re.match(r"^\s*([A-Za-z0-9])(?:[:_.-]\d+.*|[\s,:].*)?$", item)
+                    if m:
+                        out.append(m.group(1))
+            if out:
+                return list(dict.fromkeys(out))
+    return []
+
+
+def _fpocket_extract_triplet(value: Any, names: tuple[str, ...]) -> list[float | int] | None:
+    if not isinstance(value, dict):
+        return None
+    for key in names:
+        trip = _coerce_triplet(value.get(key))
+        if trip:
+            return trip
+    prefixes: list[str] = []
+    if any("center" in name or name == "centroid" for name in names):
+        prefixes.extend(("center", "pocket_center", "centroid"))
+    if any(name in {"size", "pocket_size", "box_size", "dimension", "dimensions"} for name in names):
+        prefixes.extend(("size", "pocket_size", "box_size"))
+    for prefix in prefixes:
+        vals = [value.get(f"{prefix}_x"), value.get(f"{prefix}_y"), value.get(f"{prefix}_z")]
+        trip = _coerce_triplet(vals)
+        if trip:
+            return trip
+    return None
+
+
+def _fpocket_extract_score(value: Any) -> float | int | None:
+    if not isinstance(value, dict):
+        return None
+    for key in ("score", "druggability_score", "probability", "rank_score", "pocket_score"):
+        num = _coerce_number(value.get(key))
+        if num is not None:
+            return num
+    return None
+
+
+def _fpocket_pick_top_pocket(value: Any) -> dict[str, Any] | None:
+    pockets = _fpocket_candidate_list(value)
+    if not pockets:
+        return None
+    scored: list[tuple[float, int, dict[str, Any]]] = []
+    for idx, pocket in enumerate(pockets):
+        score = _fpocket_extract_score(pocket)
+        if isinstance(score, (int, float)):
+            scored.append((float(score), idx, pocket))
+    pocket = None
+    if scored:
+        scored.sort(key=lambda item: (-item[0], item[1]))
+        pocket = scored[0][2]
+    else:
+        pocket = pockets[0]
+    if not isinstance(pocket, dict):
+        return None
+    top: dict[str, Any] = {}
+    center = _fpocket_extract_triplet(pocket, ("center", "pocket_center", "centroid", "center_xyz", "pocket_center_xyz"))
+    if center:
+        top["center"] = center
+    size = _fpocket_extract_triplet(pocket, ("size", "pocket_size", "box_size", "dimension", "dimensions"))
+    if size and size != center and all(float(v) >= 0 for v in size):
+        top["size"] = size
+    score = _coerce_number(pocket.get("score"))
+    if score is None:
+        score = _coerce_number(pocket.get("pocket_score"))
+    if score is not None:
+        top["score"] = score
+    druggability_score = _coerce_number(pocket.get("druggability_score"))
+    if druggability_score is not None:
+        top["druggability_score"] = druggability_score
+    chains = _fpocket_extract_chain_list(pocket)
+    if chains:
+        top["chains"] = chains
+    return top or None
+
+
+def _compress_fpocket_observation_payload(
+    raw_content: Any,
+    *,
+    sample_id: str,
+    actions: list[dict[str, Any]],
+    raw_event_index: int,
+    tool_use_id: str,
+    path_cache: dict[str, str],
+) -> dict[str, Any]:
+    parsed = _maybe_parse_json(raw_content)
+    if isinstance(parsed, str):
+        parsed_text = _sanitize_text_with_artifacts(parsed, path_cache)
+        msg = _first_nonempty_text(parsed_text, "fpocket output parse failed")
+        return {
+            "ok": False,
+            "tool_name": "fpocket_toolkit",
+            "status": "error",
+            "content": {
+                "status": "error",
+                "msg": msg[:240],
+            },
+        }
+
+    if not isinstance(parsed, dict):
+        parsed = {} if parsed is None else {"value": parsed}
+
+    status = _first_nonempty_text(parsed.get("status"), parsed.get("state"), parsed.get("result_status"), "success").lower()
+    if status not in {"success", "error", "timeout", "partial_success"}:
+        status = "success"
+
+    pocket_count = _fpocket_extract_count(parsed)
+    top_pocket = _fpocket_pick_top_pocket(parsed)
+    msg = _first_nonempty_text(
+        parsed.get("msg"),
+        parsed.get("message"),
+        parsed.get("summary"),
+        parsed.get("status_message"),
+    )
+    if not msg:
+        if status == "success":
+            if pocket_count is not None:
+                msg = f"fpocket 运行成功，检测到 {pocket_count} 个口袋"
+            else:
+                msg = "fpocket 运行成功"
+        else:
+            msg = "fpocket 执行失败"
+
+    artifact = "<artifact:fpocket/result>"
+    content: dict[str, Any] = {
+        "status": status,
+        "msg": msg,
+    }
+    if status == "success":
+        if pocket_count is not None:
+            content["pocket_count"] = pocket_count
+        if top_pocket:
+            content["top_pocket"] = top_pocket
+        content["artifact"] = artifact
+
+    content = _sanitize_structure_with_artifacts(content, {})
+    ok = status in {"success", "partial_success"}
+    if not ok:
+        content = {
+            "status": "error",
+            "msg": _sanitize_text_with_artifacts(msg, path_cache)[:240],
+        }
+    return {
+        "ok": ok,
+        "tool_name": "fpocket_toolkit",
+        "status": status if ok else "error",
+        "content": content,
+    }
+
+
 def _load_sidecar_json_from_original(original_path: str, copied_path: Path, summary_row: dict[str, Any], filename: str) -> dict[str, Any]:
     if not original_path:
         original_path = ""
@@ -384,7 +763,7 @@ def _load_sidecar_json_from_original(original_path: str, copied_path: Path, summ
             return _load_json(cand)
 
     run_dir, row_dir, rollout_dir = _infer_run_row_rollout_dir(copied_path, summary_row)
-    search_roots = [REPO_ROOT / "results", REPO_ROOT / "results" / "results", REPO_ROOT / "vs_pipeline" / "results"]
+    search_roots = [REPO_ROOT / "results", REPO_ROOT / "results" / "results"]
     for base in search_roots:
         if not base.exists():
             continue
@@ -420,6 +799,21 @@ def _extract_task_answer_values_from_text(task: str, text: str) -> list[str]:
     if isinstance(parsed, list):
         return _normalize_string_list(parsed)
     if isinstance(parsed, dict):
+        if task == "ac":
+            for key in ("answer_smiles", "selected_molecule", "selected_smiles", "answer", "output"):
+                vals = _normalize_string_list(parsed.get(key))
+                if vals:
+                    return vals
+        elif task == "vs":
+            for key in ("ranked_smiles", "selected_smiles", "ranking", "ranked", "ordered", "predicted_ranking", "top3", "prediction", "output", "answer"):
+                vals = _normalize_string_list(parsed.get(key))
+                if vals:
+                    return vals
+        elif task == "pf":
+            for key in ("selected_smiles", "prediction", "output", "answer"):
+                vals = _normalize_string_list(parsed.get(key))
+                if vals:
+                    return vals
         for key in ("ranking", "ranked", "ordered", "predicted_ranking", "top3", "prediction", "output", "answer"):
             vals = _normalize_string_list(parsed.get(key))
             if vals:
@@ -502,7 +896,7 @@ def _load_question_text_from_original(original_session_path: str, *, copied_path
     if cache_key in _QUESTION_TEXT_CACHE:
         return _QUESTION_TEXT_CACHE[cache_key]
 
-    search_roots = [REPO_ROOT / "results", REPO_ROOT / "results" / "results", REPO_ROOT / "vs_pipeline" / "results"]
+    search_roots = [REPO_ROOT / "results", REPO_ROOT / "results" / "results"]
     for base in search_roots:
         if not base.exists():
             continue
@@ -557,8 +951,34 @@ def _build_observation_object(
     raw_event_index: int,
     actions: list[dict[str, Any]],
     max_obs_chars: int,
+    path_cache: dict[str, str],
 ) -> tuple[dict[str, Any], bool, bool]:
     raw_status = "error" if raw_is_error else "success"
+    if tool_name == "fpocket_toolkit":
+        if isinstance(raw_content, str):
+            cleaned_text, fence_stripped = _clean_text_piece(
+                raw_content,
+                actions=actions,
+                sample_id=sample_id,
+                field_path=f"user[{raw_event_index}].tool_result[{tool_use_id}].content",
+                allow_engineering_drop=False,
+                path_cache=path_cache,
+            )
+            parsed_content: Any = _maybe_parse_json(cleaned_text or "")
+        else:
+            fence_stripped = False
+            parsed_content = raw_content
+        compressed = _compress_fpocket_observation_payload(
+            parsed_content,
+            sample_id=sample_id,
+            actions=actions,
+            raw_event_index=raw_event_index,
+            tool_use_id=tool_use_id,
+            path_cache=path_cache,
+        )
+        compressed = _sanitize_structure_with_artifacts(compressed, path_cache)
+        return compressed, bool(fence_stripped), False
+
     normalized_content = raw_content
     fence_stripped = False
     if isinstance(normalized_content, str):
@@ -568,6 +988,7 @@ def _build_observation_object(
             sample_id=sample_id,
             field_path=f"user[{raw_event_index}].tool_result[{tool_use_id}].content",
             allow_engineering_drop=False,
+            path_cache=path_cache,
         )
         if cleaned_text is None:
             cleaned_text = ""
@@ -582,9 +1003,10 @@ def _build_observation_object(
     else:
         normalized_content = str(normalized_content)
 
-    pointers = _extract_pointer_map(normalized_content)
-    if not pointers and isinstance(raw_content, (dict, list, str)):
-        pointers = _extract_pointer_map(raw_content)
+    pointers = _extract_pointer_map(raw_content)
+    if not pointers:
+        pointers = _extract_pointer_map(normalized_content)
+    pointers = _sanitize_structure_with_artifacts(pointers, path_cache) if pointers else {}
 
     status = raw_status
     content_status = None
@@ -602,6 +1024,7 @@ def _build_observation_object(
             status = "error"
 
     ok = status in {"success", "partial_success"} and not raw_is_error
+    normalized_content = _sanitize_structure_with_artifacts(normalized_content, path_cache)
     content_to_store, truncated, before_preview, after_preview = _truncate_json_compatible(normalized_content, max_obs_chars)
     if truncated:
         _record_action(
@@ -634,6 +1057,7 @@ def _build_observation_object(
         "content": content_to_store,
         "metadata": metadata,
     }
+    obs = _sanitize_structure_with_artifacts(obs, path_cache)
     return obs, fence_stripped, truncated
 
 
@@ -721,7 +1145,6 @@ def _build_task_specific_final_answer(
         return {
             "task_type": "ac",
             "answer_smiles": answer_smiles,
-            "selected_molecule": answer_smiles,
             "short_reason": short_reason,
             "evidence": [],
         }
@@ -741,12 +1164,11 @@ def _build_task_specific_final_answer(
             "evidence": [],
         }
     if task == "pf":
-        prediction = values
-        short_reason = f"Extracted {len(prediction)} predicted SMILES from the final response."
+        selected_smiles = values
+        short_reason = f"Extracted {len(selected_smiles)} predicted SMILES from the final response."
         return {
             "task_type": "pf",
-            "prediction": prediction,
-            "labels": [],
+            "selected_smiles": selected_smiles,
             "short_reason": short_reason,
             "evidence": [],
         }
@@ -776,8 +1198,8 @@ def _build_final_answer_payload(
     text: str,
     source_kind: str,
     actions: list[dict[str, Any]],
-    max_obs_chars: int,
     canonical_values: list[str],
+    path_cache: dict[str, str],
 ) -> tuple[str, dict[str, Any], bool]:
     cleaned_text, fence_stripped = _clean_text_piece(
         text,
@@ -785,19 +1207,11 @@ def _build_final_answer_payload(
         sample_id=sample_id,
         field_path=f"final_answer[{source_kind}]",
         allow_engineering_drop=False,
+        path_cache=path_cache,
     )
     cleaned_text = cleaned_text or ""
     task_result = _build_task_specific_final_answer(task=task, canonical_values=canonical_values, cleaned_text=cleaned_text)
-    summary = str(task_result.get("short_reason") or _preview_text(" ".join(cleaned_text.split()), 280) or "Final answer from trajectory")
-    payload = {
-        "type": "final_answer",
-        "task_type": task,
-        "answer": {
-            "summary": summary,
-            "evidence": [],
-            "result": task_result,
-        },
-    }
+    payload = _sanitize_structure_with_artifacts(task_result, path_cache)
     return _render_final_answer_tag(payload), payload, fence_stripped
 
 
@@ -821,12 +1235,15 @@ def _build_sample_record(
 
     sample_id = f"mcp_sft_{task}_{_sha(str(copied_path.resolve()))}"
     run_dir_name = str(summary_row.get("run_dir") or copied_path.name.split("__", 1)[0])
+    path_cache: dict[str, str] = {}
+    question_text = _sanitize_text_with_artifacts(question_text, path_cache)
 
     raw_block_hist: Counter[str] = Counter()
     retained_tool_counts: Counter[str] = Counter()
     dropped_tool_counts: Counter[str] = Counter()
     tool_name_by_id: dict[str, str] = {}
     raw_tool_name_by_id: dict[str, str] = {}
+    tool_namespace_by_id: dict[str, str] = {}
     cleaning_actions: list[dict[str, Any]] = []
     rejected_reason: str | None = None
     retained_tool_use_count = 0
@@ -857,6 +1274,7 @@ def _build_sample_record(
                     sample_id=sample_id,
                     field_path=f"assistant[{idx}].{kind}[{item_idx}]",
                     allow_engineering_drop=True,
+                    path_cache=path_cache,
                 )
                 if cleaned is None:
                     continue
@@ -868,8 +1286,8 @@ def _build_sample_record(
                 raw_block_hist["assistant.tool_use"] += 1
                 raw_name = str(tu.get("name") or "").strip()
                 tool_use_id = str(tu.get("id") or "").strip()
-                norm_name, kept = _normalize_tool_name(raw_name)
-                if not kept or not norm_name:
+                norm_name, tool_namespace = _normalize_tool_name(raw_name)
+                if not tool_namespace or not norm_name:
                     dropped_tool_counts[raw_name or "<empty>"] += 1
                     dropped_non_mcp_tool_count += 1
                     _record_action(
@@ -888,6 +1306,7 @@ def _build_sample_record(
                 if tool_use_id:
                     tool_name_by_id[tool_use_id] = norm_name
                     raw_tool_name_by_id[tool_use_id] = raw_name
+                    tool_namespace_by_id[tool_use_id] = tool_namespace
                 args = tu.get("input") if isinstance(tu.get("input"), dict) else {}
                 if not isinstance(tu.get("input"), dict):
                     _record_action(
@@ -900,10 +1319,12 @@ def _build_sample_record(
                         original_backed_up=True,
                         extra={"tool_name": norm_name, "raw_tool_name": raw_name},
                     )
+                args = _sanitize_structure_with_artifacts(args, path_cache)
                 pieces.append({
                     "kind": "tool_call",
                     "tool_name": norm_name,
                     "raw_tool_name": raw_name,
+                    "tool_namespace": tool_namespace,
                     "tool_use_id": tool_use_id,
                     "arguments": args,
                 })
@@ -928,6 +1349,7 @@ def _build_sample_record(
                 tool_use_id = str(tr.get("tool_use_id") or "").strip()
                 raw_tool_name = raw_tool_name_by_id.get(tool_use_id, "")
                 tool_name = tool_name_by_id.get(tool_use_id, "")
+                tool_namespace = tool_namespace_by_id.get(tool_use_id, "")
                 if not tool_name:
                     orphan_tool_results += 1
                     _record_action(
@@ -951,6 +1373,7 @@ def _build_sample_record(
                     raw_event_index=idx,
                     actions=cleaning_actions,
                     max_obs_chars=max_observation_chars,
+                    path_cache=path_cache,
                 )
                 if fence_stripped:
                     fence_wrappers_stripped += 1
@@ -960,6 +1383,7 @@ def _build_sample_record(
                     "kind": "observation",
                     "tool_name": tool_name,
                     "raw_tool_name": raw_tool_name,
+                    "tool_namespace": tool_namespace,
                     "tool_use_id": tool_use_id,
                     "obs": obs_obj,
                 })
@@ -1204,8 +1628,8 @@ def _build_sample_record(
         text=final_source_text,
         source_kind=final_answer_source,
         actions=cleaning_actions,
-        max_obs_chars=max_observation_chars,
         canonical_values=canonical_values,
+        path_cache=path_cache,
     )
     if final_fence_stripped:
         fence_wrappers_stripped += 1
@@ -1221,19 +1645,23 @@ def _build_sample_record(
             "source_raw_path": original_path,
         }
 
-    raw_tool_name_map = [
-        {
-            "raw_tool_name": raw_name,
-            "tool_name": raw_name[len(TOOL_PREFIX) :],
-            "count": count,
-            "kept": True,
-        }
-        for raw_name, count in sorted(retained_tool_counts.items())
-    ]
+    raw_tool_name_map = []
+    for raw_name, count in sorted(retained_tool_counts.items()):
+        tool_name, tool_namespace = _normalize_tool_name(raw_name)
+        raw_tool_name_map.append(
+            {
+                "raw_tool_name": raw_name,
+                "tool_namespace": tool_namespace or "",
+                "tool_name": tool_name or "",
+                "count": count,
+                "kept": True,
+            }
+        )
     for raw_name, count in sorted(dropped_tool_counts.items()):
         raw_tool_name_map.append(
             {
                 "raw_tool_name": raw_name,
+                "tool_namespace": "",
                 "tool_name": "",
                 "count": count,
                 "kept": False,
@@ -1364,6 +1792,7 @@ def _validate_react_sft_record(rec: dict[str, Any]) -> tuple[bool, dict[str, Any
 
     rid = str(rec.get("id") or "")
     task = _infer_task_from_sample_id(rid)
+    local_path_leak_re = ABS_PATH_RE
 
     first_role = str(msgs[0].get("role") or "") if isinstance(msgs[0], dict) else ""
     second_role = str(msgs[1].get("role") or "") if len(msgs) > 1 and isinstance(msgs[1], dict) else ""
@@ -1382,6 +1811,8 @@ def _validate_react_sft_record(rec: dict[str, Any]) -> tuple[bool, dict[str, Any
         if role not in {"system", "user", "assistant"}:
             errors.append(f"message_{i}_invalid_role:{role}")
             continue
+        if local_path_leak_re.search(content):
+            errors.append(f"message_{i}_contains_local_absolute_path")
         if role == "system":
             summary["system_messages"] += 1
             if i != 0:
@@ -1439,7 +1870,7 @@ def _validate_react_sft_record(rec: dict[str, Any]) -> tuple[bool, dict[str, Any
             args = call_obj.get("arguments")
             if not isinstance(args, dict):
                 errors.append(f"message_{i}_tool_call_arguments_invalid")
-            if isinstance(tool_name, str) and tool_name.startswith(TOOL_PREFIX):
+            if isinstance(tool_name, str) and any(tool_name.startswith(prefix) for prefix in TARGET_MCP_PREFIXES):
                 errors.append(f"message_{i}_tool_call_not_normalized:{tool_name}")
 
         for final_match in FINAL_TAG_RE.finditer(content):
@@ -1454,58 +1885,50 @@ def _validate_react_sft_record(rec: dict[str, Any]) -> tuple[bool, dict[str, Any
             if not isinstance(final_obj, dict):
                 errors.append(f"message_{i}_final_answer_not_object")
                 continue
-            if str(final_obj.get("type") or "") != "final_answer":
-                errors.append(f"message_{i}_final_answer_type_invalid")
+            if "type" in final_obj or isinstance(final_obj.get("answer"), dict):
+                errors.append(f"message_{i}_final_answer_wrapped_schema_present")
             payload_task = str(final_obj.get("task_type") or "").strip() or task
             if payload_task != task and task != "unknown":
                 errors.append(f"message_{i}_final_answer_task_mismatch:{payload_task}")
-            ans = final_obj.get("answer")
-            if not isinstance(ans, dict):
-                errors.append(f"message_{i}_final_answer_answer_invalid")
-                continue
-            if not isinstance(ans.get("summary"), str) or not str(ans.get("summary") or "").strip():
-                errors.append(f"message_{i}_final_answer_summary_invalid")
-            if not isinstance(ans.get("evidence"), list):
-                errors.append(f"message_{i}_final_answer_evidence_invalid")
-            result = ans.get("result")
-            if not isinstance(result, dict):
-                errors.append(f"message_{i}_final_answer_result_invalid")
-                continue
-            if str(result.get("task_type") or "").strip() not in {task, payload_task, ""}:
-                errors.append(f"message_{i}_final_answer_result_task_invalid")
             if task == "ac":
-                if not isinstance(result.get("answer_smiles"), str) or not str(result.get("answer_smiles") or "").strip():
+                answer_smiles = str(final_obj.get("answer_smiles") or "").strip()
+                selected_molecule = str(final_obj.get("selected_molecule") or "").strip()
+                short_reason = str(final_obj.get("short_reason") or "").strip()
+                evidence = final_obj.get("evidence")
+                if not answer_smiles:
                     errors.append(f"message_{i}_final_answer_ac_answer_smiles_invalid")
-                if not isinstance(result.get("short_reason"), str) or not str(result.get("short_reason") or "").strip():
+                if not short_reason:
                     errors.append(f"message_{i}_final_answer_ac_short_reason_invalid")
-                if "evidence" in result and not isinstance(result.get("evidence"), list):
+                if not isinstance(evidence, list):
                     errors.append(f"message_{i}_final_answer_ac_evidence_invalid")
+                if selected_molecule and selected_molecule != answer_smiles:
+                    errors.append(f"message_{i}_final_answer_ac_selected_molecule_mismatch")
             elif task == "vs":
-                ranked = result.get("ranked_smiles")
-                selected = result.get("selected_smiles")
+                ranked = final_obj.get("ranked_smiles")
+                selected = final_obj.get("selected_smiles")
                 ranked_ok = isinstance(ranked, list) and any(isinstance(v, str) and v.strip() for v in ranked)
                 selected_ok = isinstance(selected, str) and bool(selected.strip())
                 if not (ranked_ok or selected_ok):
                     errors.append(f"message_{i}_final_answer_vs_ranking_invalid")
-                if not isinstance(result.get("short_reason"), str) or not str(result.get("short_reason") or "").strip():
+                if not isinstance(final_obj.get("short_reason"), str) or not str(final_obj.get("short_reason") or "").strip():
                     errors.append(f"message_{i}_final_answer_vs_short_reason_invalid")
-                if "evidence" in result and not isinstance(result.get("evidence"), list):
+                if not isinstance(final_obj.get("evidence"), list):
                     errors.append(f"message_{i}_final_answer_vs_evidence_invalid")
             elif task == "pf":
-                prediction = result.get("prediction")
-                if not isinstance(prediction, list) or not any(isinstance(v, str) and v.strip() for v in prediction):
-                    errors.append(f"message_{i}_final_answer_pf_prediction_invalid")
-                labels = result.get("labels")
+                selected_smiles = final_obj.get("selected_smiles")
+                if not isinstance(selected_smiles, list) or not any(isinstance(v, str) and v.strip() for v in selected_smiles):
+                    errors.append(f"message_{i}_final_answer_pf_selected_smiles_invalid")
+                labels = final_obj.get("labels")
                 if labels is not None and not isinstance(labels, list):
                     errors.append(f"message_{i}_final_answer_pf_labels_invalid")
-                if not isinstance(result.get("short_reason"), str) or not str(result.get("short_reason") or "").strip():
+                if not isinstance(final_obj.get("short_reason"), str) or not str(final_obj.get("short_reason") or "").strip():
                     errors.append(f"message_{i}_final_answer_pf_short_reason_invalid")
-                if "evidence" in result and not isinstance(result.get("evidence"), list):
+                if not isinstance(final_obj.get("evidence"), list):
                     errors.append(f"message_{i}_final_answer_pf_evidence_invalid")
             elif task in {"kg", "e2e"}:
-                if "evidence" in result and not isinstance(result.get("evidence"), list):
+                if "evidence" in final_obj and not isinstance(final_obj.get("evidence"), list):
                     errors.append(f"message_{i}_final_answer_task_evidence_invalid")
-                if task == "e2e" and "steps_summary" in result and not isinstance(result.get("steps_summary"), str):
+                if task == "e2e" and "steps_summary" in final_obj and not isinstance(final_obj.get("steps_summary"), str):
                     errors.append(f"message_{i}_final_answer_steps_summary_invalid")
 
     if not seen_assistant:

@@ -30,7 +30,7 @@ bash pipeline/evaluate/run_evaluate.sh results/<run_dir> vs
 后处理（全量，从 raw 会话重建）：
 
 ```bash
-bash pipeline/postprocess/run_postprocess.sh --results-root results
+bash scripts/run_postprocess.sh --results-root results
 ```
 
 `run_postprocess.sh` 固定流程：
@@ -48,6 +48,7 @@ bash pipeline/postprocess/run_postprocess.sh --results-root results
 ## 规则约定
 
 - 不引入 reward 字段。
+- 所有任务单次 Claude 调用默认 `3600` 秒超时；可用 `TASK_TIMEOUT_SEC` 环境变量临时覆盖。
 - `vs/ac/pf` 保留单样本指标（如 `top3_hit_num/is_correct/f1`）。
 - `e2e/kg` 不做任务质量门，但必须执行完成（`return_code==0 && !timed_out && session存在`）。
 - **全任务 accepted 必须满足 `molclaw_usage > 0`**，否则标记 `missing_molclaw_usage`。
