@@ -13,7 +13,7 @@ N_CASES=""
 usage() {
   cat <<USAGE
 Usage:
-  bash scripts/run_molbench_workflow.sh --seed 604 --n-cases 60
+  bash scripts/run_molbench_workflow.sh --seed 609 --n-cases 1
 
 Description:
   1) Generate AC/VS/PF datasets under get-molbench/outputs/auto/{ac,vs,pf}

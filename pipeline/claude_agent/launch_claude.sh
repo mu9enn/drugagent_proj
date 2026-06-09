@@ -24,7 +24,6 @@ CLAUDE_BIN="${CLAUDE_BIN:-claude}"
 PYTHON_BIN="${PYTHON_BIN:-python}"
 SKIP_PROVIDER_SWITCH=0
 SKIP_MCP_VERIFY=0
-TASK_TIMEOUT_SEC="${TASK_TIMEOUT_SEC:-3600}"
 
 # Allow env override; task defaults are filled later if empty.
 MCP_SERVER_NAME="${MCP_SERVER_NAME:-}"
@@ -112,7 +111,6 @@ Shared options:
   --system-prompt-file NAME
   --provider ID                 (default: manual; set model via external cc-switch)
   --claude-bin PATH_OR_NAME     (default: claude)
-  TASK_TIMEOUT_SEC env          Single-sample timeout seconds (default: 3600)
   --skip-provider-switch
   --skip-mcp-verify
 EOF
@@ -298,7 +296,7 @@ printf '%s\n' "$PROMPT_TEXT" > "$WORKDIR/prompt.txt"
 set +e
 (
   cd "$WORKDIR" || exit 1
-  timeout "$TASK_TIMEOUT_SEC" "$CLAUDE_BIN" \
+  "$CLAUDE_BIN" \
     --dangerously-skip-permissions \
     --verbose \
     --output-format stream-json \
@@ -308,11 +306,8 @@ set +e
 ) > "$WORKDIR/complete_session.jsonl" 2>&1
 RC=$?
 set -e
-if [[ "$RC" -eq 124 ]]; then
-  printf '[runner-error] task timed out after %s seconds\n' "$TASK_TIMEOUT_SEC" >> "$WORKDIR/complete_session.jsonl"
-fi
 
-"$PYTHON_BIN" - "$WORKDIR" "$PROVIDER" "$CLAUDE_BIN" "$RC" "$TASK_TIMEOUT_SEC" <<'PY'
+"$PYTHON_BIN" - "$WORKDIR" "$PROVIDER" "$CLAUDE_BIN" "$RC" <<'PY'
 import json
 import sys
 from datetime import datetime
@@ -322,15 +317,14 @@ workdir = Path(sys.argv[1]).resolve()
 provider = sys.argv[2]
 claude_bin = sys.argv[3]
 rc = int(sys.argv[4])
-timeout_sec = int(sys.argv[5])
 meta = {
     "timestamp": datetime.now().isoformat(),
     "provider": provider,
     "claude_bin": claude_bin,
     "workdir": str(workdir),
     "return_code": rc,
-    "timed_out": rc == 124,
-    "timeout_sec": timeout_sec,
+    "timed_out": False,
+    "timeout_sec": None,
 }
 (workdir / "run_meta.json").write_text(
     json.dumps(meta, ensure_ascii=False, indent=2),

@@ -260,7 +260,7 @@ results/molbench_<task>_<provider>_run_<timestamp>/
 
 - 不再在仓库内部硬编码 provider
 - 不再默认把 qwen 写死进流程
-- 所有任务单次 Claude 调用默认 3600 秒超时，可用 `TASK_TIMEOUT_SEC` 临时覆盖
+- 所有任务的 Claude 调用均不设置执行超时，会等待任务自然结束或由用户显式中断
 - Claude 运行前会检查 MCP init 是否真的 ready
 - workdir / prompt / session 这些产物更完整
 

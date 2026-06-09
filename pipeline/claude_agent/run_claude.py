@@ -26,20 +26,6 @@ SMILES_LINE_RE = re.compile(r"^[A-Za-z0-9@+\-\[\]\(\)=#$\\/%.]+$")
 SMILES_TOKEN_RE = re.compile(r"[A-Za-z0-9@+\-\[\]\(\)=#$\\/%.]{6,}")
 
 
-def _default_task_timeout_sec() -> int:
-    raw = os.environ.get("TASK_TIMEOUT_SEC", "").strip()
-    if not raw:
-        return 60 * 60
-    try:
-        value = int(raw)
-    except ValueError:
-        return 60 * 60
-    return max(1, value)
-
-
-TASK_TIMEOUT_SEC = _default_task_timeout_sec()
-
-
 @dataclass
 class Sample:
     row_number: int
@@ -683,7 +669,6 @@ def _run_one(
     prompt: str,
     workdir: Path,
     out_file: Path,
-    timeout_sec: int | None = TASK_TIMEOUT_SEC,
     mcp_config_file: Path | None = None,
     strict_mcp_config: bool = False,
 ) -> dict[str, Any]:
@@ -714,25 +699,18 @@ def _run_one(
                 text=True,
                 stdout=f,
                 stderr=subprocess.STDOUT,
-                timeout=timeout_sec,
                 check=False,
             )
             return_code = int(proc.returncode)
-            timed_out = False
-        except subprocess.TimeoutExpired:
-            f.write(f"[runner-error] task timed out after {timeout_sec} seconds\n")
-            return_code = 124
-            timed_out = True
         except FileNotFoundError:
             f.write(f"[runner-error] executable not found: {claude_bin}\n")
             return_code = 127
-            timed_out = False
     sec = time.time() - t0
     return {
         "command": cmd,
         "return_code": return_code,
-        "timed_out": timed_out,
-        "timeout_sec": timeout_sec,
+        "timed_out": False,
+        "timeout_sec": None,
         "duration_sec": round(sec, 3),
     }
 
@@ -788,7 +766,6 @@ def _run_single_rollout(
     (workdir / "prompt.txt").write_text(prompt, encoding="utf-8")
 
     session_path = workdir / "complete_session.jsonl"
-    timeout_sec = TASK_TIMEOUT_SEC
     expected_mcp_servers = _load_expected_mcp_servers(mcp_config_file)
     enforce_mcp_ready = bool(expected_mcp_servers)
     max_ready_retries = max(0, int(os.environ.get("CLAUDE_MCP_READY_RETRIES", "2")))
@@ -805,7 +782,6 @@ def _run_single_rollout(
             prompt=prompt,
             workdir=workdir,
             out_file=session_path,
-            timeout_sec=timeout_sec,
             mcp_config_file=mcp_config_file,
             strict_mcp_config=strict_mcp_config,
         )
@@ -821,7 +797,7 @@ def _run_single_rollout(
         )
         if mcp_ready:
             break
-        if bool(cli_meta.get("timed_out")) or int(cli_meta.get("return_code", 0)) in {124, 127}:
+        if int(cli_meta.get("return_code", 0)) in {124, 127}:
             break
         if mcp_attempts > max_ready_retries:
             break
@@ -857,15 +833,6 @@ def _run_single_rollout(
         parse_attempts = [{"source": "mcp_not_ready", "error": parse_error, "count": 0}]
         answer_block = ""
         raw_answer_len = 0
-    if cli_meta.get("timed_out"):
-        actual_timeout_sec = cli_meta.get("timeout_sec", TASK_TIMEOUT_SEC)
-        parsed_answer = []
-        parse_error = f"timeout after {actual_timeout_sec} seconds"
-        parse_source = "timeout"
-        parse_attempts = [{"source": "timeout", "error": parse_error, "count": 0}]
-        answer_block = ""
-        raw_answer_len = 0
-
     parsed_payload = {
         "task": task,
         "row_number": sample.row_number,
@@ -879,7 +846,7 @@ def _run_single_rollout(
         "parse_attempts": parse_attempts,
         "raw_answer_len": raw_answer_len,
         "timed_out": bool(cli_meta.get("timed_out")),
-        "timeout_sec": cli_meta.get("timeout_sec", TASK_TIMEOUT_SEC),
+        "timeout_sec": cli_meta.get("timeout_sec"),
     }
     (workdir / "parsed_answer.json").write_text(
         json.dumps(parsed_payload, ensure_ascii=False, indent=2),
@@ -894,7 +861,7 @@ def _run_single_rollout(
         "rollout_index": rollout_index,
         "return_code": cli_meta["return_code"],
         "timed_out": bool(cli_meta.get("timed_out")),
-        "timeout_sec": cli_meta.get("timeout_sec", TASK_TIMEOUT_SEC),
+        "timeout_sec": cli_meta.get("timeout_sec"),
         "duration_sec": cli_meta["duration_sec"],
         "command": cli_meta["command"],
         "mcp_ready": bool(mcp_ready),
@@ -912,7 +879,7 @@ def _run_single_rollout(
         sample_dir=workdir,
         return_code=cli_meta["return_code"],
         timed_out=bool(cli_meta.get("timed_out")),
-        timeout_sec=cli_meta.get("timeout_sec", TASK_TIMEOUT_SEC),
+        timeout_sec=cli_meta.get("timeout_sec"),
         duration_sec=float(cli_meta["duration_sec"]),
         answer_block=answer_block,
         answer=parsed_answer,
