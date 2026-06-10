@@ -76,3 +76,6 @@ inference testing. They are not formal training entrypoints.
 
 `make check` and its component targets must never start training, Ray, GPUs,
 Claude, MCP, model loading, or remote requests.
+
+Task-oriented operating guidance is indexed in [Documentation Index](index.md)
+and the [runbooks](runbooks/).

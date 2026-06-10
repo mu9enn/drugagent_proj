@@ -67,3 +67,6 @@ Engineering cleanup must not silently change:
 
 Cross-project sharing should begin with documentation and validation contracts,
 not by moving working logic into a new shared package.
+
+For stage-by-stage inputs, outputs, consumers, and failure boundaries, continue
+with [Mainline Flow Deep Dive](mainline-flow-deep-dive.md).

@@ -31,3 +31,14 @@ reports are available through Git history.
   do not currently have independent machine-readable schemas.
 - These contracts are therefore marked `doc-only` in the contract catalog.
   Do not treat documentation as stronger validation than the implementation.
+
+## Historical Import Pollution
+
+- The active DrugAgent extension under `slime/drug_agent/` is checked against
+  the erroneous `git_cl.drugagent_proj` import prefix.
+- The wider imported Slime tree still contains that prefix in framework,
+  example, plugin, and test files. This conflicts with broad historical wording
+  that implied repository-wide removal. It is not changed by documentation
+  work; assess and repair it as a separately scoped code task.
+
+For symptom-oriented handling, see [Troubleshooting](runbooks/troubleshooting.md).

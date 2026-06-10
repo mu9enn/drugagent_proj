@@ -12,3 +12,7 @@ Contract levels:
 
 The catalog is intended to make producer/consumer relationships visible while
 keeping current behavior unchanged.
+
+For change procedures, compatibility expectations, and golden-sample guidance,
+see [Contract Guide](contract-guide.md). The JSON catalog remains the unique
+contract inventory.

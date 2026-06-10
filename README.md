@@ -17,6 +17,8 @@ commands from that project's directory unless its documentation says otherwise.
 
 ## Engineering Guide
 
+- [Documentation index](docs/index.md)
+- [Reader-oriented map](docs/reading-map.md)
 - [Mainline architecture](docs/architecture.md)
 - [Entrypoints and side effects](docs/entrypoints.md)
 - [Contract catalog](docs/contracts/README.md)
