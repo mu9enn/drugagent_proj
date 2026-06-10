@@ -2,6 +2,8 @@
 __pycache__/
 *.py[cod]
 *$py.class
+*.so
+*.sage.py
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
@@ -60,6 +62,12 @@ MANIFEST
 *.spec
 target/
 cython_debug/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Translations
+*.mo
+*.pot
 
 # Secrets and machine-local configuration
 .env
