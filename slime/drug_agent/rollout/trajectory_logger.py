@@ -4,10 +4,10 @@ import os
 from pathlib import Path
 from typing import Any
 
-from git_cl.drugagent_proj.slime.slime.utils.types import Sample
+from slime.utils.types import Sample
 
-from git_cl.drugagent_proj.slime.drug_agent.constants import DEFAULT_RUN_NAME, SLIME_DRUG_RUNS_ROOT
-from git_cl.drugagent_proj.slime.drug_agent.utils import append_jsonl, ensure_dir, to_jsonable, utc_now_iso
+from drug_agent.constants import DEFAULT_RUN_NAME, SLIME_DRUG_RUNS_ROOT
+from drug_agent.utils import append_jsonl, ensure_dir, to_jsonable, utc_now_iso
 
 
 def _get_run_name(args) -> str:

@@ -1,0 +1,31 @@
+{
+  "task_id": "kg_run_test_sample_0001",
+  "task_type": "kg_sampled",
+  "question": "Use the available tools to answer the grounded test question.",
+  "source": {
+    "type": "molclaw_kg",
+    "kg_run_id": "run_test",
+    "sample_index": 1,
+    "sample_id": "sample_0001"
+  },
+  "toolchain": {
+    "tools": ["retrieve_protein_sequence", "pred_protein_structure_esmfold"],
+    "edges": [],
+    "hops": 2
+  },
+  "expected_trajectory": {
+    "schema_version": "trajectory_v2_graph",
+    "workflow_graph": {
+      "nodes": [],
+      "edges": []
+    },
+    "execution_plan": {
+      "topological_order": [],
+      "tool_order": ["retrieve_protein_sequence", "pred_protein_structure_esmfold"]
+    }
+  },
+  "metadata": {
+    "schema_version": "kg_task_spec_v0.2",
+    "trajectory_schema_version": "trajectory_v2_graph"
+  }
+}

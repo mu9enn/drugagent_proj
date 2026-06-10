@@ -7,16 +7,16 @@ import tempfile
 if __package__ is None or __package__ == "":
     sys.path.append(str(Path(__file__).resolve().parents[3]))
 
-from git_cl.drugagent_proj.slime.drug_agent.toolrl.tests.test_converter import (  # noqa: E402
+from drug_agent.toolrl.tests.test_converter import (  # noqa: E402
     test_converter_builds_step_level_samples,
     test_converter_skips_final_answer_only_and_malformed,
 )
-from git_cl.drugagent_proj.slime.drug_agent.toolrl.tests.test_parse_tool_calls import (  # noqa: E402
+from drug_agent.toolrl.tests.test_parse_tool_calls import (  # noqa: E402
     test_parse_tool_calls_filters_non_molclaw,
     test_parse_tool_calls_rejects_malformed_json,
     test_parse_tool_calls_single_and_multi_call,
 )
-from git_cl.drugagent_proj.slime.drug_agent.toolrl.tests.test_reward import (  # noqa: E402
+from drug_agent.toolrl.tests.test_reward import (  # noqa: E402
     test_reward_bool_number_smiles_and_artifact_matching,
     test_reward_hyphen_tool_name_no_longer_matches_underscore,
     test_reward_missing_and_extra_params_penalized,
@@ -24,7 +24,7 @@ from git_cl.drugagent_proj.slime.drug_agent.toolrl.tests.test_reward import (  #
     test_reward_parameter_alias_no_longer_matches,
     test_reward_perfect_match_near_one,
 )
-from git_cl.drugagent_proj.slime.drug_agent.toolrl.validate_toolrl_offline_data import validate_toolrl_offline_data  # noqa: E402
+from drug_agent.toolrl.validate_toolrl_offline_data import validate_toolrl_offline_data  # noqa: E402
 
 
 def main() -> int:

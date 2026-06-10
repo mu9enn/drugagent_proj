@@ -14,15 +14,15 @@ from typing import Any
 if __package__ is None or __package__ == "":
     sys.path.append(str(Path(__file__).resolve().parents[2]))
 
-from git_cl.drugagent_proj.slime.drug_agent.constants import VERL_DATA
-from git_cl.drugagent_proj.slime.drug_agent.offline_guard import assert_tool_environment_allowed
-from git_cl.drugagent_proj.slime.drug_agent.protocol.parse_policy import parse_action_with_policy
-from git_cl.drugagent_proj.slime.drug_agent.protocol.action_schema import ACTION_FINAL_ANSWER, ACTION_TOOL_CALL
-from git_cl.drugagent_proj.slime.drug_agent.tools.tool_executor import MCPToolExecutor
-from git_cl.drugagent_proj.slime.drug_agent.tools.tool_registry import ToolRegistry, load_allowlist
-from git_cl.drugagent_proj.slime.drug_agent.tools.tool_success import make_validation_failed_result
-from git_cl.drugagent_proj.slime.drug_agent.tools_debug.sglang_launcher import detect_sglang_launch_command
-from git_cl.drugagent_proj.slime.drug_agent.utils import append_jsonl, ensure_dir, normalize_tool_name, to_jsonable
+from drug_agent.constants import VERL_DATA
+from drug_agent.offline_guard import assert_tool_environment_allowed
+from drug_agent.protocol.parse_policy import parse_action_with_policy
+from drug_agent.protocol.action_schema import ACTION_FINAL_ANSWER, ACTION_TOOL_CALL
+from drug_agent.tools.tool_executor import MCPToolExecutor
+from drug_agent.tools.tool_registry import ToolRegistry, load_allowlist
+from drug_agent.tools.tool_success import make_validation_failed_result
+from drug_agent.tools_debug.sglang_launcher import detect_sglang_launch_command
+from drug_agent.utils import append_jsonl, ensure_dir, normalize_tool_name, to_jsonable
 
 REQUIRED_MCP_ENV = (
     "MOLCLAW_SCP_SERVER_URL",

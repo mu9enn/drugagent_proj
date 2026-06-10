@@ -4,7 +4,7 @@ import json
 import os
 from typing import Any
 
-from git_cl.drugagent_proj.slime.drug_agent.protocol.action_parser import ParseResult, parse_action
+from drug_agent.protocol.action_parser import ParseResult, parse_action
 
 ROLLOUT_MODE_TRAIN_STRICT = "train_strict"
 ROLLOUT_MODE_DEBUG_PERMISSIVE = "debug_permissive"

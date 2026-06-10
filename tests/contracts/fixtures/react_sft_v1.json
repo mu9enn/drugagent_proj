@@ -1,0 +1,22 @@
+{
+  "schema_version": "drug_agent_sft_react_json_v1",
+  "id": "mcp_sft_ac_test_0001",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Find the relevant molecule."
+    },
+    {
+      "role": "assistant",
+      "content": "<thought>Validate the molecule.</thought><tool_call>{\"tool_name\":\"is_valid_smiles\",\"arguments\":{\"smiles_list\":[\"CCO\"]}}</tool_call>"
+    },
+    {
+      "role": "user",
+      "content": "<observation tool_name=\"is_valid_smiles\">{\"ok\":true,\"content\":{\"smiles\":\"CCO\"}}</observation>"
+    },
+    {
+      "role": "assistant",
+      "content": "<final_answer>{\"answer\":{\"summary\":\"Found a molecule.\",\"evidence\":[],\"result\":{\"answer_smiles\":\"CCO\"}}}</final_answer>"
+    }
+  ]
+}

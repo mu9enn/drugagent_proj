@@ -21,17 +21,16 @@ It does not call an external tool runtime during training.
 
 ## Current drug_agent Paths
 
-The legacy `drug_agent/scripts/run_qwen3_5_0_8b_drug_grpo_smoke.sh`,
-`run_qwen3_5_0_8b_drug_grpo_learn.sh`, and
-`run_qwen3_5_0_8b_drug_ppo_smoke.sh` contain the historical online-agent implementation. They use:
+The historical online-training launchers that used the online custom generator
+have been removed. They previously used:
 
 ```text
 --custom-generate-function-path drug_agent.rollout.generate_with_drug_agent.generate
 ```
 
-That generator instantiates `MCPToolExecutor` and calls `executor.execute(...)` after parsing a
-valid tool call. Because formal training must now be offline, all three legacy scripts are disabled
-before Ray starts and are retained only as historical reference.
+That generator instantiates `MCPToolExecutor` and calls `executor.execute(...)`
+after parsing a valid tool call. It remains available only for explicitly
+opted-in online evaluation/debug. Formal training launchers do not use it.
 
 The offline ToolRL path is separate and lives under `drug_agent/toolrl/`.
 Its training script uses:

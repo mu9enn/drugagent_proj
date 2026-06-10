@@ -7,10 +7,10 @@ import threading
 import time
 from typing import Any
 
-from git_cl.drugagent_proj.slime.drug_agent.offline_guard import assert_tool_environment_allowed
-from git_cl.drugagent_proj.slime.drug_agent.tools.mcp_client import MCPClient
-from git_cl.drugagent_proj.slime.drug_agent.tools.tool_success import evaluate_tool_success
-from git_cl.drugagent_proj.slime.drug_agent.utils import to_jsonable
+from drug_agent.offline_guard import assert_tool_environment_allowed
+from drug_agent.tools.mcp_client import MCPClient
+from drug_agent.tools.tool_success import evaluate_tool_success
+from drug_agent.utils import to_jsonable
 
 
 class MCPToolExecutor:

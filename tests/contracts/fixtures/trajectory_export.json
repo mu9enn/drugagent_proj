@@ -1,0 +1,22 @@
+{
+  "task": "ac",
+  "task_id": "ac_row0001_idx1_r0001",
+  "status": "accepted",
+  "reject_reasons": [],
+  "task_reject_checks": {
+    "molclaw_usage_count": 1
+  },
+  "candidates": [],
+  "ground_truth": ["CCO"],
+  "final_answer": ["CCO"],
+  "canonical": {
+    "candidates": [],
+    "ground_truth": ["CCO"],
+    "final_answer": ["CCO"]
+  },
+  "task_metrics": {
+    "acc": 1.0,
+    "is_correct": true
+  },
+  "molclaw_usage_count": 1
+}

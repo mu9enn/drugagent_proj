@@ -11,9 +11,9 @@ from typing import Any, Iterable
 if __package__ is None or __package__ == "":
     sys.path.append(str(Path(__file__).resolve().parents[2]))
 
-from git_cl.drugagent_proj.slime.drug_agent.protocol.react_protocol import parse_react_sequence
-from git_cl.drugagent_proj.slime.drug_agent.toolrl.parse_tool_calls import default_molclaw_allowlist, parse_tool_calls
-from git_cl.drugagent_proj.slime.drug_agent.utils import ensure_dir, read_jsonl, to_jsonable, write_json, write_jsonl
+from drug_agent.protocol.react_protocol import parse_react_sequence
+from drug_agent.toolrl.parse_tool_calls import default_molclaw_allowlist, parse_tool_calls
+from drug_agent.utils import ensure_dir, read_jsonl, to_jsonable, write_json, write_jsonl
 
 
 def _iter_json_files(path: Path) -> Iterable[Path]:

@@ -1,0 +1,95 @@
+{
+  "catalog_version": "1",
+  "contracts": [
+    {
+      "id": "molclaw_kg_internal_models",
+      "version": "current",
+      "status": "active",
+      "level": "model",
+      "producer": "molclaw-kg",
+      "consumers": ["molclaw-kg"],
+      "definition": "molclaw-kg/src/molclaw_kg/models.py",
+      "validator": null
+    },
+    {
+      "id": "trajectory_v2_graph",
+      "version": "trajectory_v2_graph",
+      "status": "active",
+      "level": "validator",
+      "producer": "molclaw-kg Stage3",
+      "consumers": ["mol-pipeline KG adapter"],
+      "definition": "mol-pipeline/pipeline/kg/schemas/kg_task_spec_v0.2.md",
+      "validator": "mol-pipeline/pipeline/kg/scripts/build_kg_task_dataset.py"
+    },
+    {
+      "id": "kg_task_spec",
+      "version": "kg_task_spec_v0.2",
+      "status": "active",
+      "level": "doc-only",
+      "producer": "mol-pipeline KG adapter",
+      "consumers": ["mol-pipeline task execution"],
+      "definition": "mol-pipeline/pipeline/kg/schemas/kg_task_spec_v0.2.md",
+      "validator": null
+    },
+    {
+      "id": "complete_session",
+      "version": "current",
+      "status": "active",
+      "level": "doc-only",
+      "producer": "mol-pipeline claude_agent",
+      "consumers": ["mol-pipeline trajectory exporter", "mol-pipeline postprocess"],
+      "definition": "mol-pipeline/pipeline/claude_agent/README.md",
+      "validator": null
+    },
+    {
+      "id": "trajectory_exports",
+      "version": "current",
+      "status": "active",
+      "level": "doc-only",
+      "producer": "mol-pipeline trajectory_exporter",
+      "consumers": ["mol-pipeline scan_molclaw_usage"],
+      "definition": "mol-pipeline/pipeline/postprocess/README.md",
+      "validator": null
+    },
+    {
+      "id": "react_sft",
+      "version": "drug_agent_sft_react_json_v1",
+      "status": "active",
+      "level": "validator",
+      "producer": "mol-pipeline post_process_sft",
+      "consumers": ["Slime SFT", "DrugAgent ToolRL", "DrugAgent GAD"],
+      "definition": "mol-pipeline/pipeline/postprocess/react_sft_schema_v1.md",
+      "validator": "slime/drug_agent/data/validate_sft_messages.py"
+    },
+    {
+      "id": "rl_prompt",
+      "version": "mcp-rl-prompt-v2-all",
+      "status": "active",
+      "level": "doc-only",
+      "producer": "mol-pipeline post_process_sft",
+      "consumers": ["downstream prompt consumers"],
+      "definition": "mol-pipeline/pipeline/postprocess/post_process_sft.py",
+      "validator": null
+    },
+    {
+      "id": "toolrl_step",
+      "version": "toolrl_step_v1",
+      "status": "active",
+      "level": "validator",
+      "producer": "DrugAgent ToolRL converter",
+      "consumers": ["DrugAgent offline ToolRL training"],
+      "definition": "slime/drug_agent/toolrl/convert_react_to_toolrl_steps.py",
+      "validator": "slime/drug_agent/toolrl/validate_toolrl_offline_data.py"
+    },
+    {
+      "id": "gad_step",
+      "version": "drug_agent_gad_step_v1",
+      "status": "active",
+      "level": "doc-only",
+      "producer": "DrugAgent GAD converter",
+      "consumers": ["DrugAgent GAD Stage2 and Stage3"],
+      "definition": "slime/drug_agent/gad/data.py",
+      "validator": null
+    }
+  ]
+}

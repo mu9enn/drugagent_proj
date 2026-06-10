@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from git_cl.drugagent_proj.slime.drug_agent.utils import append_jsonl, to_jsonable
+from drug_agent.utils import append_jsonl, to_jsonable
 
 
 async def zero_reward(args, sample_or_samples, **kwargs):

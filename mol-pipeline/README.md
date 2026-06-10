@@ -2,6 +2,10 @@
 
 统一分子任务执行与后处理工程（`vs/ac/pf/e2e/kg`），当前采用硬切后的 `pipeline/` 架构。
 
+跨项目主线、契约与入口副作用以 monorepo 根目录的
+`docs/architecture.md`、`docs/contracts/catalog.json` 和
+`docs/entrypoints.md` 为准。
+
 ## 目录结构
 
 - `pipeline/claude_agent`：只负责执行任务与落盘 raw 会话（`complete_session.jsonl` 等）

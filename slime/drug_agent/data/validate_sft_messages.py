@@ -10,10 +10,10 @@ import sys
 if __package__ is None or __package__ == "":
     sys.path.append(str(Path(__file__).resolve().parents[2]))
 
-from git_cl.drugagent_proj.slime.drug_agent.protocol.action_parser import parse_action
-from git_cl.drugagent_proj.slime.drug_agent.protocol.action_schema import ACTION_FINAL_ANSWER, ACTION_TOOL_CALL
-from git_cl.drugagent_proj.slime.drug_agent.protocol.parse_policy import extract_json_object_candidate, parse_action_with_policy
-from git_cl.drugagent_proj.slime.drug_agent.protocol.react_protocol import (
+from drug_agent.protocol.action_parser import parse_action
+from drug_agent.protocol.action_schema import ACTION_FINAL_ANSWER, ACTION_TOOL_CALL
+from drug_agent.protocol.parse_policy import extract_json_object_candidate, parse_action_with_policy
+from drug_agent.protocol.react_protocol import (
     PROTOCOL_ACTION_JSON,
     PROTOCOL_AUTO,
     PROTOCOL_REACT_JSON,

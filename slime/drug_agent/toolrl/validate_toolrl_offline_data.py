@@ -10,8 +10,8 @@ from typing import Any, Iterable
 if __package__ is None or __package__ == "":
     sys.path.append(str(Path(__file__).resolve().parents[2]))
 
-from git_cl.drugagent_proj.slime.drug_agent.toolrl.parse_tool_calls import default_molclaw_allowlist
-from git_cl.drugagent_proj.slime.drug_agent.utils import read_jsonl, write_json, write_jsonl
+from drug_agent.toolrl.parse_tool_calls import default_molclaw_allowlist
+from drug_agent.utils import read_jsonl, write_json, write_jsonl
 
 
 def _load_rows(path: Path) -> list[dict[str, Any]]:

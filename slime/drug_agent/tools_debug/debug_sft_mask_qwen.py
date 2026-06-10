@@ -9,10 +9,10 @@ from typing import Any
 if __package__ is None or __package__ == "":
     sys.path.append(str(Path(__file__).resolve().parents[2]))
 
-from git_cl.drugagent_proj.slime.slime.utils.mask_utils import MultiTurnLossMaskGenerator
-from git_cl.drugagent_proj.slime.slime.utils.processing_utils import load_tokenizer
+from slime.utils.mask_utils import MultiTurnLossMaskGenerator
+from slime.utils.processing_utils import load_tokenizer
 
-from git_cl.drugagent_proj.slime.drug_agent.data.materialize_sft_jsonl import materialize_sft_jsonl
+from drug_agent.data.materialize_sft_jsonl import materialize_sft_jsonl
 
 
 def _iter_jsonl(path: Path):

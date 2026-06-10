@@ -15,6 +15,23 @@ projects used for molecular-agent development.
 Each project keeps its own README and entry points. Run project-specific
 commands from that project's directory unless its documentation says otherwise.
 
+## Engineering Guide
+
+- [Mainline architecture](docs/architecture.md)
+- [Entrypoints and side effects](docs/entrypoints.md)
+- [Contract catalog](docs/contracts/README.md)
+- [Known issues](docs/known-issues.md)
+- [Legacy removal record](docs/legacy-removals.md)
+
+Non-invasive repository checks:
+
+```bash
+make check
+```
+
+These checks do not start training, Ray, GPUs, Claude, MCP, model loading, or
+remote requests.
+
 ## Repository History
 
 The three projects were previously maintained as independent Git repositories.

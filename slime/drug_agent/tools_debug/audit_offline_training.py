@@ -38,7 +38,7 @@ FORMAL_HOOKS = {
     "gad_service": ROOT / "gad/service.py",
     "gad_trajectory_logger": ROOT / "gad/trajectory_logger.py",
 }
-LEGACY_ONLINE_TRAINING = (
+RETIRED_ONLINE_TRAINING = (
     ROOT / "scripts/run_qwen3_5_0_8b_drug_grpo_smoke.sh",
     ROOT / "scripts/run_qwen3_5_0_8b_drug_grpo_learn.sh",
     ROOT / "scripts/run_qwen3_5_0_8b_drug_ppo_smoke.sh",
@@ -106,14 +106,12 @@ def audit() -> dict[str, Any]:
         if hits:
             findings.append({"severity": "critical", "type": "formal_hook_tool_dependency", "name": name, "hits": hits})
 
-    legacy = {}
-    for path in LEGACY_ONLINE_TRAINING:
-        text = _read(path)
-        disabled = "reject_legacy_online_training.sh" in text
-        disabled_before_launch = disabled and text.index("reject_legacy_online_training.sh") < text.index("ray start")
-        legacy[path.name] = {"path": str(path), "disabled_before_launch": disabled_before_launch}
-        if not disabled_before_launch:
-            findings.append({"severity": "critical", "type": "legacy_online_training_enabled", "path": str(path)})
+    retired = {}
+    for path in RETIRED_ONLINE_TRAINING:
+        absent = not path.exists()
+        retired[path.name] = {"path": str(path), "absent": absent}
+        if not absent:
+            findings.append({"severity": "critical", "type": "retired_online_training_present", "path": str(path)})
 
     gad_stage3 = _read(FORMAL_SCRIPTS["gad_stage3"])
     gad_stage2 = _read(FORMAL_SCRIPTS["gad_stage2_negatives"])
@@ -160,7 +158,7 @@ def audit() -> dict[str, Any]:
         "policy": "offline fixed states + current-policy next-action sampling; actions are never executed during training",
         "formal_scripts": scripts,
         "formal_hooks": hooks,
-        "legacy_online_training": legacy,
+        "retired_online_training": retired,
         "offline_training_contract": training_contract,
         "gad_on_policy_contract": gad_contract,
         "network_targets": network_targets,

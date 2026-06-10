@@ -25,6 +25,8 @@ python train_async.py --help
 - [slime/](slime/): core library.
 - [slime_plugins/](slime_plugins/): optional plugins and extensions.
 - [scripts/](scripts/): lightweight run helpers.
+- [drug_agent/](drug_agent/README.md): DrugAgent offline-training plugins and
+  explicitly opted-in online MCP evaluation/debug tools.
 
 ## Notes
 

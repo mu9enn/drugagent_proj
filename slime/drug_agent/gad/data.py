@@ -6,9 +6,9 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-from git_cl.drugagent_proj.slime.drug_agent.protocol.react_protocol import parse_react_sequence
-from git_cl.drugagent_proj.slime.drug_agent.toolrl.parse_tool_calls import parse_tool_calls
-from git_cl.drugagent_proj.slime.drug_agent.utils import read_jsonl, write_json, write_jsonl
+from drug_agent.protocol.react_protocol import parse_react_sequence
+from drug_agent.toolrl.parse_tool_calls import parse_tool_calls
+from drug_agent.utils import read_jsonl, write_json, write_jsonl
 
 NON_MOLCLAW_LOCAL_TOOLS = {
     "askuserquestion",

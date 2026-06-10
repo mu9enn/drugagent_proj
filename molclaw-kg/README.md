@@ -2,6 +2,10 @@
 
 MolClaw MCP 工具的 Tool Knowledge Graph 构建工程（fixed pruning taxonomy + directional agent adjudication）。
 
+跨项目主线、契约与入口副作用以 monorepo 根目录的
+`docs/architecture.md`、`docs/contracts/catalog.json` 和
+`docs/entrypoints.md` 为准。
+
 ## 当前协议（已切换）
 
 1. 固定 taxonomy 真源：`configs/stage_taxonomy.json`

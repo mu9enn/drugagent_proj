@@ -3,9 +3,9 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from git_cl.drugagent_proj.slime.slime.utils.types import Sample
+from slime.utils.types import Sample
 
-from git_cl.drugagent_proj.slime.drug_agent.utils import clamp, to_jsonable
+from drug_agent.utils import clamp, to_jsonable
 
 
 def _extract_trace(sample: Sample) -> dict[str, Any]:

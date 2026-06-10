@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from git_cl.drugagent_proj.slime.drug_agent.gad.discriminator import GADDiscriminator
+from drug_agent.gad.discriminator import GADDiscriminator
 
 DISCRIMINATOR: GADDiscriminator | None = None
 LOCK = asyncio.Lock()

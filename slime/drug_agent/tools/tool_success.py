@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from git_cl.drugagent_proj.slime.drug_agent.utils import to_jsonable
+from drug_agent.utils import to_jsonable
 
 ERROR_STATUS_VALUES = {
     "error",

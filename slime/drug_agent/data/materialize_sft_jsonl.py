@@ -9,7 +9,7 @@ from typing import Any, Iterable
 if __package__ is None or __package__ == "":
     sys.path.append(str(Path(__file__).resolve().parents[2]))
 
-from git_cl.drugagent_proj.slime.drug_agent.utils import ensure_dir, write_json
+from drug_agent.utils import ensure_dir, write_json
 
 
 def _load_json_file(path: Path) -> dict[str, Any]:

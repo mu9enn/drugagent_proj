@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Tool-KG × Mol-Pipeline × Slime-WD 核心流程可视化 v3</title>
+<style>
+:root{
+  --bg:#f6f8fb; --paper:#ffffff; --ink:#172033; --muted:#5f6b7a; --line:#a9b7c9;
+  --kg:#e8f1ff; --kg-b:#4385d1; --pipe:#ecfbf3; --pipe-b:#2d9b69; --slime:#fff3e8; --slime-b:#d57925;
+  --data:#f5edff; --data-b:#8a5fc2; --warn:#fff7db; --warn-b:#d0a21a; --drop:#fff1f1; --drop-b:#d65b5b;
+  --ok:#eaf8ee; --ok-b:#3a9c57; --debug:#eeeeee; --debug-b:#888;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans CJK SC","Microsoft YaHei",Arial,sans-serif;color:var(--ink);line-height:1.55}
+header{padding:34px 44px 24px;background:linear-gradient(135deg,#172033,#243854);color:white}
+header h1{margin:0 0 10px;font-size:28px}
+header p{margin:0;max-width:1200px;color:#dce6f3}
+main{padding:28px 36px 80px;max-width:1600px;margin:auto}
+section{background:var(--paper);border:1px solid #e2e8f0;border-radius:16px;padding:24px;margin:22px 0;box-shadow:0 8px 22px rgba(20,40,80,.05)}
+h2{margin:0 0 16px;font-size:23px;border-left:6px solid #496c9f;padding-left:12px}
+h3{margin:24px 0 12px;font-size:18px;color:#243854}
+h4{margin:16px 0 8px;font-size:15px;color:#344b6b}
+p{margin:8px 0}
+code,kbd{background:#eef2f7;border:1px solid #d9e1ec;border-radius:5px;padding:1px 5px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.92em}
+pre{background:#101827;color:#edf5ff;border-radius:12px;padding:14px;overflow:auto;font-size:12px;line-height:1.5}
+.small{font-size:13px;color:var(--muted)}
+.note{border-left:5px solid var(--warn-b);background:var(--warn);padding:12px 14px;border-radius:10px;margin:12px 0}
+.decision{border-left:5px solid #6884ff;background:#f0f3ff;padding:12px 14px;border-radius:10px;margin:12px 0}
+.legend{display:flex;flex-wrap:wrap;gap:10px;margin:10px 0 4px}
+.legend span{display:inline-flex;align-items:center;gap:6px;border:1px solid #d6dee9;border-radius:999px;background:#fff;padding:6px 10px;font-size:13px}
+.dot{width:13px;height:13px;border-radius:4px;display:inline-block}
+.dot.kg{background:var(--kg);border:2px solid var(--kg-b)}
+.dot.pipe{background:var(--pipe);border:2px solid var(--pipe-b)}
+.dot.slime{background:var(--slime);border:2px solid var(--slime-b)}
+.dot.data{background:var(--data);border:2px solid var(--data-b)}
+.dot.drop{background:var(--drop);border:2px solid var(--drop-b)}
+.dot.debug{background:var(--debug);border:2px solid var(--debug-b)}
+.flow{display:flex;align-items:stretch;gap:10px;overflow-x:auto;padding:10px 2px 16px}
+.step{min-width:260px;max-width:360px;border-radius:14px;border:2px solid var(--line);background:#fff;padding:14px;position:relative}
+.step h4{margin-top:0;font-size:15px}
+.step ul{margin:8px 0 0 18px;padding:0}
+.step li{margin:3px 0}
+.step.kg{background:var(--kg);border-color:var(--kg-b)}
+.step.pipe{background:var(--pipe);border-color:var(--pipe-b)}
+.step.slime{background:var(--slime);border-color:var(--slime-b)}
+.step.data{background:var(--data);border-color:var(--data-b)}
+.step.drop{background:var(--drop);border-color:var(--drop-b)}
+.step.warn{background:var(--warn);border-color:var(--warn-b)}
+.step.debug{background:var(--debug);border-color:var(--debug-b)}
+.arrow{min-width:86px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#415875;font-weight:700;text-align:center}
+.arrow:before{content:"";height:2px;width:70px;background:#7890ad;display:block;margin-bottom:6px}
+.arrow:after{content:"➜";font-size:24px;line-height:1;color:#415875}
+.arrow small{font-weight:500;color:var(--muted);font-size:12px;margin-top:4px;max-width:120px}
+.swim{display:grid;grid-template-columns:220px 1fr;gap:12px;margin:14px 0;border:1px solid #d9e1ec;border-radius:14px;background:#fbfdff;overflow:hidden}
+.swim .lane{font-weight:700;padding:14px;background:#edf3fb;border-right:1px solid #d9e1ec}
+.swim .lane-content{padding:12px;overflow-x:auto}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.card{border:1px solid #d9e1ec;border-radius:12px;background:#fff;padding:14px}
+.card h4{margin:0 0 8px}
+.card ul{margin:6px 0 0 18px;padding:0}
+table{border-collapse:collapse;width:100%;font-size:13px;margin:12px 0;border-radius:12px;overflow:hidden}
+th,td{border:1px solid #d8e0ec;padding:9px 10px;vertical-align:top}
+th{background:#eef3fa;text-align:left;color:#203654}
+tr:nth-child(even) td{background:#fbfdff}
+.badge{display:inline-block;padding:2px 7px;border-radius:999px;font-size:12px;border:1px solid #cdd8e6;background:#f7faff;margin:1px 2px}
+.badge.main{background:#e8f7ee;border-color:#9fd2b1}
+.badge.debug{background:#eee;border-color:#bbb}
+.badge.todo{background:#fff4d8;border-color:#d8b557}
+.badge.no{background:#ffe9e9;border-color:#e69a9a}
+details{border:1px solid #d8e0ec;border-radius:12px;padding:10px 14px;margin:10px 0;background:#fff}
+summary{cursor:pointer;font-weight:700;color:#233c60}
+.seq{display:grid;grid-template-columns:repeat(5,minmax(160px,1fr));gap:8px;margin:8px 0}
+.seq div{border:1px solid #ccd8e6;border-radius:10px;padding:10px;background:#f9fbfe;font-size:13px}
+.ref{font-size:12px;color:#64748b}
+footer{color:#6b7788;font-size:12px;margin-top:30px}
+@media(max-width:1000px){.grid2,.grid3{grid-template-columns:1fr}.swim{grid-template-columns:1fr}.swim .lane{border-right:0;border-bottom:1px solid #d9e1ec}.seq{grid-template-columns:1fr 1fr}.step{min-width:240px}}
+</style>
+</head>
+<body>
+<header>
+<h1>Tool-KG × Mol-Pipeline × Slime-WD 核心流程可视化文档 v3</h1>
+<p>目标：让项目 owner 可以沿着箭头读完整主流程，并看到每一步的输入、动作、输出、消费者、过滤规则、调试边界与待确认点。本版刻意牺牲简短性，优先讲清细节。</p>
+</header>
+<main>
+
+<section id="detail-standard">
+<h2>0. 本版采用的“足够细”的描述标准</h2>
+<p>上一版的问题是节点仍停留在“Stage1/2 构建工具卡与关系图”这种摘要层。这个粒度不足以让 owner 判断流程是否正确。本版每个关键节点都按下面的六格模板展开：</p>
+<div class="grid3">
+  <div class="card"><h4>输入是什么</h4><p>具体到文件、目录、配置、数据行、环境变量、外部服务。例如：<code>skills_full/</code>、<code>stage_taxonomy.json</code>、<code>complete_session.jsonl</code>。</p></div>
+  <div class="card"><h4>动作做什么</h4><p>说明算法/脚本的真实工作，而不是只写“处理”。例如：抽 tool card、按 stage prune candidate pair、单向 adjudication、closure 验证。</p></div>
+  <div class="card"><h4>中间判断是什么</h4><p>列出过滤、accepted/rejected、debug 与正式路径的判断条件。比如：<code>molclaw_usage &gt; 0</code>、<code>partial edge 需 input closure</code>。</p></div>
+  <div class="card"><h4>输出是什么</h4><p>具体到产物名、字段角色、sidecar。比如：<code>tool_cards.jsonl</code>、<code>edge_debug_sidecar.jsonl</code>、<code>mcp_sft_all.train.jsonl</code>。</p></div>
+  <div class="card"><h4>谁消费它</h4><p>说明下一步脚本/仓库如何读它，避免产物孤立。例如：KG sampled tasks 被 <code>mol-pipeline/pipeline/kg</code> 消费。</p></div>
+  <div class="card"><h4>不是它的事情</h4><p>指出边界。例如：Tool-KG Stage3 不远程执行 MolClaw；Offline ToolRL formal training 不调用 MCP。</p></div>
+</div>
+<div class="note">
+<strong>读图方式：</strong>每个大图先给箭头主链，再给节点展开卡片。箭头表达“数据/产物流”，卡片解释“这个节点内部到底做了什么”。
+</div>
+</section>
+
+<section id="legend">
+<h2>1. 图例与总览</h2>
+<div class="legend">
+  <span><i class="dot kg"></i>molclaw-kg：工具知识图谱与任务采样</span>
+  <span><i class="dot pipe"></i>mol-pipeline：真实执行、raw data、后处理</span>
+  <span><i class="dot slime"></i>slime/drug_agent：训练、offline RL、debug</span>
+  <span><i class="dot data"></i>数据产物 / 中间格式</span>
+  <span><i class="dot drop"></i>丢弃 / 只进审计</span>
+  <span><i class="dot debug"></i>debug / smoke / 非正式主路径</span>
+</div>
+<div class="flow">
+  <div class="step kg"><h4>① molclaw-kg</h4><ul><li>从工具文档和 schema 提取 tool cards</li><li>判定工具间有向关系边</li><li>通过本地 Science-KB 生成 grounded 任务</li></ul></div>
+  <div class="arrow"><small>KG sampled questions / tasks</small></div>
+  <div class="step pipe"><h4>② mol-pipeline</h4><ul><li>组织 MolBench / KG / E2E 任务</li><li>驱动 Claude agent 调用 MolClaw/MCP 工具</li><li>保存 raw stream-json 会话</li></ul></div>
+  <div class="arrow"><small>complete_session.jsonl</small></div>
+  <div class="step pipe"><h4>③ 后处理</h4><ul><li>重建 trajectory</li><li>扫描 MolClaw usage</li><li>转成 ReAct-SFT / RL prompt 数据</li></ul></div>
+  <div class="arrow"><small>mcp_sft_all / toolrl steps</small></div>
+  <div class="step slime"><h4>④ slime/drug_agent</h4><ul><li>SFT 学完整 ReAct 轨迹</li><li>Offline ToolRL 学工具选择/参数</li><li>debug 工具链另行隔离</li></ul></div>
+  <div class="arrow"><small>checkpoint / rollout logs</small></div>
+  <div class="step data"><h4>⑤ pf/vs/ac 评测</h4><ul><li>以任务级指标评估 agent</li><li>输出 metrics / reports / failure cases</li></ul></div>
+</div>
+</section>
+
+<section id="kg-deep">
+<h2>2. molclaw-kg：工具卡、关系图、KG 采样是怎么产生的</h2>
+
+<h3>2.1 Stage1：工具卡不是“工具列表”，而是把工具变成可判边的结构化证据</h3>
+<div class="flow">
+  <div class="step kg"><h4>输入：工具快照 + 技能文档</h4>
+    <ul><li><code>skills_full/</code></li><li>MCP 工具 schema / snapshot</li><li><code>configs/prompts/tool_card_agent_v1.md</code></li></ul>
+  </div>
+  <div class="arrow"><small>snapshot → doc chunks</small></div>
+  <div class="step kg"><h4>doc_chunks 构造</h4>
+    <ul><li>把 skills / 文档切成可引用 chunk</li><li>为每个工具保留证据来源</li><li>后续 tool card 的解释不直接进主图</li></ul>
+  </div>
+  <div class="arrow"><small>LLM extracts card</small></div>
+  <div class="step data"><h4>tool card</h4>
+    <ul><li>工具身份、功能目的</li><li>输入/输出实体类型</li><li>适用 stage / 任务角色</li><li>前置条件与失败模式</li><li>示例参数/产物描述</li></ul>
+  </div>
+  <div class="arrow"><small>write artifacts</small></div>
+  <div class="step data"><h4>Stage1 产物</h4>
+    <ul><li><code>tool_snapshot.jsonl</code></li><li><code>doc_chunks.jsonl</code></li><li><code>tool_cards.jsonl</code></li><li><code>tool_cards_debug.jsonl</code></li></ul>
+  </div>
+</div>
+
+<div class="grid2">
+  <div class="card">
+    <h4>工具卡里的核心信息</h4>
+    <p>工具卡的作用是让后续 pairwise 判边时有统一的工具语义表示。它不只是“工具名 + 描述”，而是把自然语言 skills、schema、输入输出、任务 stage 转成可以比较的结构。</p>
+    <ul>
+      <li><strong>tool identity：</strong>规范化工具名、所属服务、功能一句话。</li>
+      <li><strong>input contract：</strong>需要哪些参数、参数代表什么科学实体，例如 SMILES、protein sequence、PDB/CIF path、pocket center。</li>
+      <li><strong>output contract：</strong>输出能否作为另一个工具输入，例如结构文件、binding affinity、ADMET 属性、candidate ranking。</li>
+      <li><strong>stage tag：</strong>使用 <code>stage_taxonomy.json</code> 提供的固定 taxonomy；stage 只用于 pruning，不参与 confidence 打分。</li>
+      <li><strong>evidence：</strong>解释性文本写入 <code>tool_cards_debug.jsonl</code>，主图字段瘦身。</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h4>为什么先做工具卡</h4>
+    <p>后续关系图不是靠工具名字符串相似度建立，而是比较“上游工具的输出是否能提供下游工具的完整/部分输入、格式转换、参数化、过滤、排序、验证等关系”。工具卡是 pairwise adjudication 的证据材料。</p>
+    <ul>
+      <li>避免直接让 LLM 在长 skills 文档中任意联想。</li>
+      <li>让每条边有可审计依据。</li>
+      <li>让 stage pruning 在候选对层面生效，减少无意义 pair。</li>
+    </ul>
+  </div>
+</div>
+
+<h3>2.2 Stage2：关系图的边如何建立</h3>
+<div class="flow">
+  <div class="step kg"><h4>输入</h4>
+    <ul><li><code>tool_cards.jsonl</code></li><li><code>stage_taxonomy.json</code></li><li><code>edge_ontology_v1.yaml</code></li><li><code>rules_v1.yaml</code></li></ul>
+  </div>
+  <div class="arrow"><small>stage pruning</small></div>
+  <div class="step kg"><h4>候选 pair 生成</h4>
+    <ul><li>按 fixed taxonomy 剪枝</li><li>保留 allowed direction</li><li>被剪 pair 进入 <code>pair_pruned_by_stage.jsonl</code></li></ul>
+  </div>
+  <div class="arrow"><small>single direction adjudication</small></div>
+  <div class="step kg"><h4>有向判边</h4>
+    <ul><li>每个 allowed direction 独立调用 LLM</li><li>判断 A 是否可为 B 提供输入/中间结果/过滤排序等</li><li>输出 edge type、confidence、理由</li></ul>
+  </div>
+  <div class="arrow"><small>score + export</small></div>
+  <div class="step data"><h4>图产物</h4>
+    <ul><li><code>pair_adjudications.jsonl</code></li><li><code>scored_edges.jsonl</code></li><li><code>graph_core/all/expanded/uncertain/negative</code></li><li><code>edge_debug_sidecar.jsonl</code></li></ul>
+  </div>
+</div>
+
+<div class="grid2">
+  <div class="card">
+    <h4>边类型：关系图不是单一“可连接”</h4>
+    <p>当前 edge ontology 包含多种 canonical edge types，用于表达不同的工具依赖关系：</p>
+    <ul>
+      <li><code>generates_full_input_for</code>：上游输出可完整作为下游输入。</li>
+      <li><code>generates_partial_input_for</code>：上游只提供部分输入，需要其他 provider 补齐。</li>
+      <li><code>preprocesses_for</code>：上游对下游输入做预处理。</li>
+      <li><code>converts_format_for</code>：格式转换关系。</li>
+      <li><code>parameterizes_for</code>：上游为下游产生参数。</li>
+      <li><code>filters_candidates_for</code>：过滤候选集合。</li>
+      <li><code>ranks_or_scores_for</code>：评分/排序关系。</li>
+      <li><code>validates_output_of</code>：验证另一个工具的输出。</li>
+      <li><code>refines_output_of</code>：细化另一个工具输出。</li>
+      <li><code>reports_or_summarizes</code>：汇总报告关系。</li>
+      <li><code>alternative_to</code>：替代方案，默认不作为 chain edge。</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h4>边建立规则</h4>
+    <ul>
+      <li><strong>单向调用：</strong>A→B 和 B→A 是不同判断，每个 allowed direction 单独判定。</li>
+      <li><strong>stage 只剪枝：</strong>stage 不参与 confidence 打分，只减少明显不合理 pair。</li>
+      <li><strong>confidence：</strong>采用 <code>confidence_raw = agent_confidence</code>。</li>
+      <li><strong>生成类边拆分：</strong>完整输入和部分输入分开，避免把“部分可用”误当作可直接执行。</li>
+      <li><strong>requires_intermediate：</strong>不再作为 edge_type，只作为 negative_reason，避免把“还缺中间步骤”误画成可用边。</li>
+      <li><strong>sidecar：</strong>复杂解释写入 <code>edge_debug_sidecar.jsonl</code>，主图字段保持瘦身。</li>
+    </ul>
+  </div>
+</div>
+
+<h3>2.3 Stage3：KG 采样不是直接拿边拼任务，而是要闭合依赖与 grounding</h3>
+<div class="flow">
+  <div class="step data"><h4>输入</h4>
+    <ul><li><code>graph_core</code> / selected edge profile</li><li>本地 Science-KB：UniProt/GtoPdb/BindingDB</li><li><code>toolchain_question_sampler_v1.md</code></li></ul>
+  </div>
+  <div class="arrow"><small>anchor walk</small></div>
+  <div class="step kg"><h4>随机 anchor walk</h4>
+    <ul><li>只作为科学任务启发</li><li>Agent 可删除/增加工具</li><li>默认 <code>dag_closure</code></li></ul>
+  </div>
+  <div class="arrow"><small>repair + closure</small></div>
+  <div class="step kg"><h4>Python 严格验证</h4>
+    <ul><li>Science-KB grounding</li><li>ToolKG / skills edge evidence</li><li>partial input closure</li><li>provider expansion</li><li>问题可执行性</li></ul>
+  </div>
+  <div class="arrow"><small>success only if closed</small></div>
+  <div class="step data"><h4>采样产物</h4>
+    <ul><li><code>sample_attempts.jsonl</code></li><li><code>sample_success.jsonl</code></li><li><code>sample_success_v2.jsonl</code></li><li><code>questions.csv</code></li><li><code>grounding_records.jsonl</code></li></ul>
+  </div>
+</div>
+<div class="note">
+<strong>重要边界：</strong>Stage3 不远程执行 MolClaw 科学工具，只读本地 Science-KB；下载/构建 Science-KB 的脚本也不接入采样主流程。
+</div>
+</section>
+
+<section id="pipeline-deep">
+<h2>3. mol-pipeline：从任务到 raw session，再到后处理候选</h2>
+
+<h3>3.1 任务来源与执行入口</h3>
+<div class="swim">
+  <div class="lane">输入任务</div>
+  <div class="lane-content">
+    <div class="flow">
+      <div class="step data"><h4>MolBench-MS</h4><ul><li><code>vs</code>：virtual screening</li><li><code>ac</code>：affinity comparison</li><li><code>pf</code>：property/function</li></ul></div>
+      <div class="arrow"><small>task records</small></div>
+      <div class="step data"><h4>KG-sampled tasks</h4><ul><li>由 molclaw-kg Stage3 产生</li><li>经 <code>pipeline/kg</code> 构造成可执行任务集</li></ul></div>
+      <div class="arrow"><small>task file</small></div>
+      <div class="step data"><h4>E2E questions</h4><ul><li>由 <code>pipeline/e2e</code> 构建/运行</li><li>不完全等同 vs/ac/pf 评测</li></ul></div>
+    </div>
+  </div>
+</div>
+
+<div class="swim">
+  <div class="lane">执行过程</div>
+  <div class="lane-content">
+    <div class="flow">
+      <div class="step pipe"><h4>runner</h4><ul><li><code>pipeline/claude_agent/run_execute.sh</code></li><li><code>pipeline/kg/run_kg_pipeline.sh</code></li><li><code>pipeline/e2e/run_e2e_pipeline.sh</code></li></ul></div>
+      <div class="arrow"><small>prompt + skills</small></div>
+      <div class="step pipe"><h4>Claude agent session</h4><ul><li>读 system prompt / skills</li><li>规划工具调用</li><li>产出 text/thinking/tool_use</li></ul></div>
+      <div class="arrow"><small>real MCP calls</small></div>
+      <div class="step data"><h4>MolClaw/MCP tools</h4><ul><li>真实远程/本地工具服务</li><li>返回 tool_result / artifact</li><li>可能有路径、大输出、日志</li></ul></div>
+      <div class="arrow"><small>stream-json</small></div>
+      <div class="step data"><h4>raw session</h4><ul><li><code>complete_session.jsonl</code></li><li>raw logs</li><li>工具输出和 artifact 引用</li></ul></div>
+    </div>
+  </div>
+</div>
+
+<h3>3.2 raw session 里有什么：训练需要的是其中一部分</h3>
+<div class="grid3">
+  <div class="card">
+    <h4>会进入训练语义的 block</h4>
+    <ul>
+      <li><strong>text/thinking：</strong>可转成 <code>&lt;thought&gt;</code> 或最终说明。</li>
+      <li><strong>MCP tool_use：</strong>工具名形如 <code>mcp__molclaw-scp__*</code>，是药筛工具调用。</li>
+      <li><strong>MCP tool_result：</strong>可转成 <code>&lt;observation&gt;</code>，用于后续推理上下文。</li>
+      <li><strong>final text：</strong>可转成 <code>&lt;final_answer&gt;</code>。</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h4>不会作为药筛工具学习的 block</h4>
+    <ul>
+      <li><code>Bash</code>、<code>Read</code>、<code>Write</code>、<code>Edit</code>、<code>Grep</code>、<code>Glob</code> 等工程工具。</li>
+      <li>读 skills、看目录、写 <code>run_log.md</code> / <code>result.md</code> 的工作流 chatter。</li>
+      <li>本地绝对路径和长文件列表通常不应原样进入训练正文。</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h4>进入审计而不是正文的内容</h4>
+    <ul>
+      <li>原始工具名映射。</li>
+      <li>被丢弃 block 的原因。</li>
+      <li>完整 artifact path / base64 / 超长 observation。</li>
+      <li>answer-hit、metrics、accepted/rejected 统计。</li>
+    </ul>
+  </div>
+</div>
+
+<h3>3.3 后处理三段链：trajectory_exporter → scan_molclaw_usage → post_process_sft</h3>
+<div class="flow">
+  <div class="step data"><h4>raw results</h4><ul><li><code>results/&lt;run&gt;/...</code></li><li><code>complete_session.jsonl</code></li><li>可能包含 vs/ac/pf/kg/e2e</li></ul></div>
+  <div class="arrow"><small>rebuild from raw</small></div>
+  <div class="step pipe"><h4>trajectory_exporter.py</h4><ul><li>只读 raw 产物重建</li><li>不依赖旧 accepted/rejected</li><li>按任务类型应用基础质量门</li></ul></div>
+  <div class="arrow"><small>candidate sessions</small></div>
+  <div class="step pipe"><h4>scan_molclaw_usage.py</h4><ul><li>统计 MolClaw usage</li><li>导出候选集合</li><li>不做 answer-hit 过滤</li></ul></div>
+  <div class="arrow"><small>accepted candidates</small></div>
+  <div class="step pipe"><h4>post_process_sft.py</h4><ul><li>构造 SFT/RL 输出</li><li>answer-hit-only 只影响 vs/ac/pf</li><li>kg/e2e 不按 answer-hit 过滤</li></ul></div>
+  <div class="arrow"><small>training data</small></div>
+  <div class="step data"><h4>postprocess outputs</h4><ul><li><code>mcp_sft_all.jsonl</code></li><li><code>mcp_rl_prompts_all.jsonl</code></li><li><code>sft_outputs/*</code></li><li>reports / manifest</li></ul></div>
+</div>
+
+<div class="decision">
+<strong>accepted / rejected 口径：</strong>vs/ac/pf 使用原质量门；kg/e2e 要求 run 完成；全任务都必须 <code>molclaw_usage &gt; 0</code>，否则 rejected 为 <code>missing_molclaw_usage</code>。后处理不引入 reward，只保留任务指标和审计信息。
+</div>
+</section>
+
+<section id="react-data-deep">
+<h2>4. raw session 到 ReAct-SFT：逐 block 分流、清洗、组装</h2>
+
+<h3>4.1 block 分流图</h3>
+<div class="flow">
+  <div class="step data"><h4>raw block</h4><ul><li>text</li><li>thinking</li><li>tool_use</li><li>tool_result</li><li>metadata/log</li></ul></div>
+  <div class="arrow"><small>inspect type + tool name</small></div>
+  <div class="step pipe"><h4>分类器</h4><ul><li>是否 assistant text/thought?</li><li>是否 MCP tool?</li><li>是否 tool_result 对应 MCP?</li><li>是否工程/文件操作?</li></ul></div>
+  <div class="arrow"><small>keep path</small></div>
+  <div class="step data"><h4>ReAct messages</h4><ul><li><code>&lt;thought&gt;</code></li><li><code>&lt;tool_call&gt;</code></li><li><code>&lt;observation&gt;</code></li><li><code>&lt;final_answer&gt;</code></li></ul></div>
+  <div class="arrow"><small>drop path</small></div>
+  <div class="step drop"><h4>audit only</h4><ul><li>非 MCP tool_use/result</li><li>超长原文</li><li>本地路径原值</li><li>统计字段</li></ul></div>
+</div>
+
+<h3>4.2 ReAct messages 的组装规则</h3>
+<div class="seq">
+  <div><strong>system</strong><br/>给模型任务身份、输出协议、可用工具约束。</div>
+  <div><strong>user task</strong><br/>原始任务问题，可能来自 MolBench、KG sampled、E2E。</div>
+  <div><strong>assistant</strong><br/><code>&lt;thought&gt;</code> + 一个或多个 <code>&lt;tool_call&gt;</code>。</div>
+  <div><strong>user observation</strong><br/>工具结果被包装成 <code>&lt;observation&gt;</code>，通常不计 loss。</div>
+  <div><strong>assistant final</strong><br/><code>&lt;thought&gt;</code> + <code>&lt;final_answer&gt;</code>。</div>
+</div>
+
+<div class="grid2">
+  <div class="card">
+    <h4>保留逻辑</h4>
+    <ul>
+      <li>自然语言科学推理保留为 <code>&lt;thought&gt;</code>，但应尽量去掉读 skills、写文件等工程 chatter。</li>
+      <li>MCP 工具调用保留为 <code>&lt;tool_call&gt;{json}</code>，工具名前缀规范化为 MolClaw 工具名。</li>
+      <li>MCP 工具结果保留为 <code>&lt;observation&gt;</code>，可摘要化、路径 artifact 化。</li>
+      <li>最终答案保留为结构化 <code>&lt;final_answer&gt;</code>，尽量只保留任务答案与必要 evidence。</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h4>丢弃/压缩逻辑</h4>
+    <ul>
+      <li>非 MCP 工具调用和对应结果不进入模型要学习的工具空间。</li>
+      <li>外层 fenced block 去掉 wrapper，但保留内部真实内容。</li>
+      <li><code>/root/...</code>、<code>/home/...</code> 等绝对路径转成 artifact handle，原值进入 sidecar。</li>
+      <li>base64、完整 PDB/CIF、超长文件列表、fpocket 全输出应摘要化。</li>
+    </ul>
+  </div>
+</div>
+
+<h3>4.3 数据形态演变：从 raw 到 SFT 到 ToolRL step</h3>
+<table>
+<thead><tr><th>阶段</th><th>示意形态</th><th>模型学习什么</th><th>不学习什么</th></tr></thead>
+<tbody>
+<tr>
+<td>raw session</td>
+<td><code>complete_session.jsonl</code> 中混合 text/thinking/tool_use/tool_result/log</td>
+<td>还不是训练数据，是唯一真源</td>
+<td>不直接喂给 slime</td>
+</tr>
+<tr>
+<td>ReAct-SFT sample</td>
+<td><code>{"messages":[system,user,assistant,user,...]}</code>，assistant 含 <code>&lt;thought&gt;</code>/<code>&lt;tool_call&gt;</code>/<code>&lt;final_answer&gt;</code></td>
+<td>完整多轮 ReAct 行为：推理、调用、观察后再推理、最终答案</td>
+<td>不把 Bash/Read/Write 当作药筛工具学习</td>
+</tr>
+<tr>
+<td>ToolRL offline step</td>
+<td><code>prompt + label + metadata.target_tool_calls</code></td>
+<td>给定状态下生成正确下一步工具调用；reward 比较 generated vs reference</td>
+<td>正式训练不执行 generated tool call，也不请求新 observation</td>
+</tr>
+</tbody>
+</table>
+</section>
+
+<section id="slime-deep">
+<h2>5. slime/drug_agent：SFT、Offline ToolRL、Debug 边界</h2>
+
+<h3>5.1 ReAct-SFT 训练主路径</h3>
+<div class="flow">
+  <div class="step data"><h4>输入数据</h4><ul><li><code>mcp_sft_all</code></li><li><code>mcp_sft_all.train.jsonl</code></li><li>ReAct-tagged messages</li></ul></div>
+  <div class="arrow"><small>validate</small></div>
+  <div class="step slime"><h4>validate_sft_messages.py</h4><ul><li>role/order 检查</li><li>chat template 检查</li><li>ReAct tag / mask 兼容检查</li></ul></div>
+  <div class="arrow"><small>run script</small></div>
+  <div class="step slime"><h4>SFT shell entry</h4><ul><li><code>run_qwen3_5_0_8b_drug_sft_smoke.sh</code></li><li><code>run_qwen3_5_4b_drug_sft_smoke.sh</code></li><li>参数化模型/TP/GBS/RBS</li></ul></div>
+  <div class="arrow"><small>slime native</small></div>
+  <div class="step slime"><h4>train.py</h4><ul><li><code>sft_rollout.generate_rollout</code></li><li><code>sft_loss</code></li><li><code>--loss-mask-type qwen3_5</code></li></ul></div>
+  <div class="arrow"><small>save</small></div>
+  <div class="step data"><h4>checkpoint/log</h4><ul><li><code>slime_drug_agent_runs/*</code></li><li>train/loss, grad_norm</li><li>Ray job logs</li></ul></div>
+</div>
+
+<details open>
+<summary>SFT 参数约束为什么要画进流程注释</summary>
+<p>这不是普通运行说明，而是影响 owner 判断“训练路径是否真的可复现”的关键约束。当前 SFT 路径要求一次 rollout 交给训练的数据量至少能组成一个 global batch，因此：</p>
+<pre>ROLLOUT_BATCH_SIZE >= GLOBAL_BATCH_SIZE
+ROLLOUT_BATCH_SIZE % GLOBAL_BATCH_SIZE == 0
+GLOBAL_BATCH_SIZE % DATA_PARALLEL_SIZE == 0</pre>
+<p>4B 长样本场景下，TP=1 会在 logits/logits.clone 阶段显存峰值过高；TP=4 能解决 GPU OOM，但可能触发 host RAM / Ray memory monitor 问题。因此运行图中要把 smoke/debug 资源约束与正式流程分开。</p>
+</details>
+
+<h3>5.2 Offline ToolRL-style RL 路径</h3>
+<div class="flow">
+  <div class="step data"><h4>cleaned ReAct trajectory</h4><ul><li>已有任务、历史 observation</li><li>每个 MCP tool_call 可作为 reference step</li></ul></div>
+  <div class="arrow"><small>slice into states</small></div>
+  <div class="step slime"><h4>convert_react_to_toolrl_steps.py</h4><ul><li>抽 step-level prompt</li><li>保留 target assistant</li><li>保留 target tool_calls</li><li>写 metadata</li></ul></div>
+  <div class="arrow"><small>offline sample</small></div>
+  <div class="step data"><h4>toolrl_steps.jsonl</h4><ul><li><code>prompt</code></li><li><code>label</code></li><li><code>metadata</code></li><li><code>target_tool_calls</code></li></ul></div>
+  <div class="arrow"><small>generate next action</small></div>
+  <div class="step slime"><h4>GRPO / reward</h4><ul><li>student 只生成下一步 action</li><li><code>molclaw_reward.reward_func</code></li><li>比较 generated 与 reference</li></ul></div>
+  <div class="arrow"><small>update</small></div>
+  <div class="step data"><h4>RL checkpoint</h4><ul><li>不调用 MCP</li><li>不产生新 observation</li><li>只训练工具选择/参数构造</li></ul></div>
+</div>
+
+<div class="decision">
+<strong>正式训练边界：</strong>Offline ToolRL、GAD、OPD formal training 使用固定离线状态；student rollout 生成的工具调用只作为文本/动作评分对象，不会被执行，不会向 MCP/MolClaw 请求新 observation。真实工具交互只存在于显式 debug/evaluation 脚本中。
+</div>
+
+<h3>5.3 Debug / online 工具交互分支：必须和正式训练分开画</h3>
+<div class="flow">
+  <div class="step debug"><h4>debug scripts</h4><ul><li><code>debug_mcp_tools.py</code></li><li><code>debug_one_task.py</code></li><li><code>debug_replay_trajectory.py</code></li></ul></div>
+  <div class="arrow"><small>explicit opt-in</small></div>
+  <div class="step debug"><h4>env gate</h4><ul><li><code>DRUG_AGENT_ALLOW_TOOL_ENV=1</code></li><li><code>MOLCLAW_SCP_SERVER_URL</code></li><li><code>MOLCLAW_SCP_API_KEY</code></li></ul></div>
+  <div class="arrow"><small>real tool call</small></div>
+  <div class="step data"><h4>MCP/MolClaw</h4><ul><li>health check</li><li>single-task rollout debug</li><li>replay old trajectory</li></ul></div>
+  <div class="arrow"><small>trace only</small></div>
+  <div class="step data"><h4>debug trace</h4><ul><li>不作为 formal training 主链</li><li>用于定位 parser/tool/schema/env 问题</li></ul></div>
+</div>
+</section>
+
+<section id="artifacts">
+<h2>6. 关键产物表：每个文件处在流程中的什么位置</h2>
+<table>
+<thead><tr><th>阶段</th><th>产物/目录/文件</th><th>生成者</th><th>消费者</th><th>用途</th><th>主流程</th><th>备注</th></tr></thead>
+<tbody>
+<tr><td>KG Stage1</td><td><code>tool_snapshot.jsonl</code></td><td>Stage1 snapshot</td><td>doc chunk / tool card generation</td><td>记录工具原始 snapshot</td><td><span class="badge main">是</span></td><td>Stage1 的最早结构化输入之一</td></tr>
+<tr><td>KG Stage1</td><td><code>doc_chunks.jsonl</code></td><td>skills/doc parser</td><td>tool card agent</td><td>把长 skills 切成可引用证据</td><td><span class="badge main">是</span></td><td>支撑 tool card 可追溯性</td></tr>
+<tr><td>KG Stage1</td><td><code>tool_cards.jsonl</code></td><td>tool card agent</td><td>Stage2 candidate/adjudication</td><td>统一工具功能、输入输出、stage、证据</td><td><span class="badge main">是</span></td><td>主图消费精简字段</td></tr>
+<tr><td>KG Stage1</td><td><code>tool_cards_debug.jsonl</code></td><td>tool card agent</td><td>人工审计</td><td>保存解释性信息</td><td><span class="badge">辅助</span></td><td>不进入主图真值</td></tr>
+<tr><td>KG Stage2</td><td><code>candidate_pairs.jsonl</code></td><td>stage pruning / pair builder</td><td>pairwise adjudication</td><td>待判定有向候选对</td><td><span class="badge main">是</span></td><td>被 stage taxonomy 剪枝后得到</td></tr>
+<tr><td>KG Stage2</td><td><code>pair_pruned_by_stage.jsonl</code></td><td>stage pruning</td><td>审计</td><td>说明被剪掉的 pair</td><td><span class="badge">辅助</span></td><td>stage 只 pruning</td></tr>
+<tr><td>KG Stage2</td><td><code>pair_adjudications.jsonl</code></td><td>LLM adjudicator</td><td>scoring/export</td><td>单向判边结果</td><td><span class="badge main">是</span></td><td>包含 edge type / confidence / reason</td></tr>
+<tr><td>KG Stage2</td><td><code>graph_core.jsonl</code>, <code>graph_all.graphml</code></td><td>graph export</td><td>Stage3 sampling / visualization</td><td>工具关系图</td><td><span class="badge main">是</span></td><td>core 边通常用于 Stage3 anchor</td></tr>
+<tr><td>KG Stage3</td><td><code>sample_success_v2.jsonl</code>, <code>questions.csv</code></td><td>run_sample_questions.sh</td><td>mol-pipeline/kg builder</td><td>grounded sampled tasks</td><td><span class="badge main">是</span></td><td>具体消费哪个文件需本地确认</td></tr>
+<tr><td>Pipeline raw</td><td><code>complete_session.jsonl</code></td><td>Claude agent runner</td><td>trajectory_exporter</td><td>raw stream-json 唯一真源</td><td><span class="badge main">是</span></td><td>包含 text/thinking/tool_use/tool_result</td></tr>
+<tr><td>Postprocess</td><td><code>mcp_sft_all.jsonl</code></td><td>post_process_sft.py</td><td>slime/drug_agent data prep</td><td>SFT 数据入口</td><td><span class="badge main">是</span></td><td>可能还要转/同步成 train.jsonl</td></tr>
+<tr><td>Postprocess</td><td><code>mcp_rl_prompts_all.jsonl</code></td><td>post_process_sft.py</td><td>RL prompt / offline step converter</td><td>RL prompt 候选</td><td><span class="badge main">是</span></td><td>具体格式与后续 ToolRL step 区分</td></tr>
+<tr><td>Slime data</td><td><code>mcp_sft_all.train.jsonl</code></td><td>drug_agent data prep</td><td>SFT script</td><td>训练实际消费的 ReAct messages</td><td><span class="badge main">是</span></td><td>路径约定需和本地脚本同步</td></tr>
+<tr><td>ToolRL data</td><td><code>*.toolrl_steps.jsonl</code></td><td>convert_react_to_toolrl_steps.py</td><td>ToolRL GRPO script</td><td>step-level offline tool-call RL</td><td><span class="badge main">是</span></td><td>正式训练不执行工具</td></tr>
+<tr><td>Training</td><td><code>slime_drug_agent_runs/*</code></td><td>SFT/GRPO scripts</td><td>evaluation / analysis</td><td>checkpoint、Ray logs、metrics</td><td><span class="badge main">是</span></td><td>smoke 与正式训练需分目录</td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="scripts">
+<h2>7. 关键脚本 / 模块表</h2>
+<table>
+<thead><tr><th>脚本/模块</th><th>所属子项目</th><th>输入</th><th>输出</th><th>作用</th><th>流程节点</th><th>备注</th></tr></thead>
+<tbody>
+<tr><td><code>scripts/run_pipeline_stage1_toolcards.sh</code></td><td>molclaw-kg</td><td>tool snapshot, skills, prompt</td><td>tool cards, debug sidecar</td><td>抽取工具卡</td><td>KG Stage1</td><td>支持 alert-rerun/resume</td></tr>
+<tr><td><code>scripts/run_pipeline_stage2_graph.sh</code></td><td>molclaw-kg</td><td>tool cards, taxonomy, ontology, rules</td><td>scored edges, graph views</td><td>构建有向工具关系图</td><td>KG Stage2</td><td>pairwise 单向判边</td></tr>
+<tr><td><code>scripts/run_sample_questions.sh</code></td><td>molclaw-kg</td><td>graph + Science-KB</td><td>sample_success, questions.csv</td><td>生成 grounded task/question</td><td>KG Stage3</td><td>不执行远程 MolClaw</td></tr>
+<tr><td><code>pipeline/claude_agent/run_execute.sh</code></td><td>mol-pipeline</td><td>task file, skills, prompt/env</td><td>raw session</td><td>真实执行任务并落盘 raw</td><td>Pipeline execution</td><td>会调用 MCP/MolClaw</td></tr>
+<tr><td><code>pipeline/kg/scripts/build_kg_task_dataset.py</code></td><td>mol-pipeline</td><td>molclaw-kg run dir</td><td>KG task dataset</td><td>把 KG sampled result 转成 pipeline 可执行任务</td><td>KG→Pipeline bridge</td><td>具体字段映射待本地确认</td></tr>
+<tr><td><code>pipeline/evaluate/run_evaluate.sh</code></td><td>mol-pipeline</td><td>vs/ac/pf predictions</td><td>metrics/reports</td><td>评测 vs/ac/pf</td><td>Evaluation</td><td>是否直接评 slime checkpoint 待确认</td></tr>
+<tr><td><code>scripts/run_postprocess.sh</code></td><td>mol-pipeline</td><td>raw results</td><td>SFT/RL candidates</td><td>串联三段后处理</td><td>Postprocess</td><td>固定 exporter→scan→post_process</td></tr>
+<tr><td><code>trajectory_exporter.py</code></td><td>mol-pipeline</td><td>complete_session.jsonl</td><td>candidate trajectory</td><td>从 raw 重建轨迹</td><td>Postprocess step 1</td><td>只读 raw 产物</td></tr>
+<tr><td><code>scan_molclaw_usage.py</code></td><td>mol-pipeline</td><td>candidate trajectories</td><td>usage summary / accepted set</td><td>统计 MolClaw usage</td><td>Postprocess step 2</td><td>不做 answer-hit 过滤</td></tr>
+<tr><td><code>post_process_sft.py</code></td><td>mol-pipeline</td><td>accepted sessions</td><td>mcp_sft_all / mcp_rl_prompts</td><td>生成训练候选</td><td>Postprocess step 3</td><td>answer-hit-only 在这里作用</td></tr>
+<tr><td><code>validate_sft_messages.py</code></td><td>slime/drug_agent</td><td>ReAct SFT JSONL</td><td>validation summary</td><td>验证 chat template / messages / mask 兼容性</td><td>SFT prep</td><td>防止训练期才发现格式问题</td></tr>
+<tr><td><code>run_qwen3_5_*_drug_sft_smoke.sh</code></td><td>slime/drug_agent</td><td>SFT train JSONL, model, torch_dist</td><td>checkpoint/log</td><td>Slime-native SFT</td><td>SFT training</td><td>模型/TP/GBS/RBS 需匹配</td></tr>
+<tr><td><code>convert_react_to_toolrl_steps.py</code></td><td>slime/drug_agent</td><td>cleaned ReAct trajectories</td><td>ToolRL step JSONL</td><td>切 step-level offline RL 样本</td><td>Offline ToolRL prep</td><td>每个 MCP tool_call 可成为 target step</td></tr>
+<tr><td><code>molclaw_reward.reward_func</code></td><td>slime/drug_agent</td><td>generated action + reference tool_call</td><td>reward components</td><td>离线规则 reward</td><td>Offline ToolRL train</td><td>不调用 MCP</td></tr>
+<tr><td><code>debug_one_task.py</code>, <code>debug_mcp_tools.py</code></td><td>slime/drug_agent</td><td>debug sample/env</td><td>trace / health result</td><td>检查工具链或 rollout</td><td>Debug path</td><td>非 formal training 主流程</td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="todos">
+<h2>8. 待 owner / 本地代码确认点</h2>
+<ol>
+  <li><strong>KG Stage3 到 mol-pipeline 的具体字段映射：</strong>文档确认存在 <code>build_kg_task_dataset.py --kg-run-dir</code>，但 HTML 中具体应写消费 <code>sample_success_v2.jsonl</code> 还是 <code>questions.csv</code>，需要本地确认。</li>
+  <li><strong>postprocess 输出与 slime 训练输入的同步路径：</strong>上游通常在 <code>results/postprocess_candidates/</code>，训练常用 <code>slime_wd/data/mcp_sft_all.train.jsonl</code> 或 <code>$VERL_DATA/slime_drug_agent_data</code>，中间 copy/convert 步骤需确认。</li>
+  <li><strong>正式 evaluation 是否已直接接入 slime checkpoint：</strong>mol-pipeline 有 vs/ac/pf evaluate，但 checkpoint-to-agent-prediction 的桥接是否已落地仍需确认。</li>
+  <li><strong>SFT 数据清洗质量标准：</strong>流程已画出 raw→ReAct 的技术链路，但 thought、observation、final_answer 的质量清洗深度是数据质量问题，需要 owner 决定严格程度。</li>
+  <li><strong>ToolRL / GAD / OPD 的主线优先级：</strong>当前图把 SFT + Offline ToolRL 放主线，GAD/OPD 可作为扩展训练线；若项目计划变化，应调整图层级。</li>
+  <li><strong>运行资源约束是否要进入 owner 版图：</strong>4B/27B smoke 的 TP/DP/RBS/GBS 与 host RAM 约束对复现实验重要，但是否放在主图还是附录，需要 owner 取舍。</li>
+</ol>
+</section>
+
+<footer>
+<p>Source anchors for this document should be checked against the current local repositories before final owner review. This HTML intentionally expands implementation details and separates confirmed main flow, debug flow, and TODO assumptions.</p>
+</footer>
+</main>
+</body>
+</html>
