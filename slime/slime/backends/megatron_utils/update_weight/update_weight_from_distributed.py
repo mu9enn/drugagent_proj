@@ -5,15 +5,15 @@ import time
 from argparse import Namespace
 from collections.abc import Callable, Iterator, Mapping, Sequence
 
-import ray
+import git_cl.drugagent_proj.slime.slime.ray as ray
 import torch
 import torch.distributed as dist
 from megatron.core import mpu
-from ray import ObjectRef
+from git_cl.drugagent_proj.slime.slime.ray import ObjectRef
 from ray.actor import ActorHandle
 from tqdm import tqdm
 
-from slime.utils.distributed_utils import get_gloo_group, init_process_group
+from git_cl.drugagent_proj.slime.slime.utils.distributed_utils import get_gloo_group, init_process_group
 
 from ..megatron_to_hf import convert_to_hf
 from ..sglang import DeltaSpec

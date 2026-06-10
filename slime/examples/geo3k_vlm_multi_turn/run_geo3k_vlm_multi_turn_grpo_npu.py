@@ -1,6 +1,6 @@
 import os
 
-from slime.utils.external_utils.command_utils import execute_train_npu
+from git_cl.drugagent_proj.slime.slime.utils.external_utils.command_utils import execute_train_npu
 
 MODEL_NAME = os.environ.get("SLIME_SCRIPT_MODEL_NAME", "Qwen3-VL-2B-Instruct")
 assert MODEL_NAME in {

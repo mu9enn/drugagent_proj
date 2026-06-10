@@ -1,8 +1,8 @@
 import aiohttp
 import torch
 
-from slime.utils.processing_utils import encode_image_for_rollout_engine
-from slime.utils.types import Sample
+from git_cl.drugagent_proj.slime.slime.utils.processing_utils import encode_image_for_rollout_engine
+from git_cl.drugagent_proj.slime.slime.utils.types import Sample
 
 
 async def reward_func(args, sample, **kwargs):

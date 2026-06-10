@@ -7,13 +7,13 @@ from pathlib import Path
 from typing import Any
 
 import torch
-from examples.geo3k_vlm_multi_turn.base_env import BaseInteractionEnv
+from git_cl.drugagent_proj.slime.examples.geo3k_vlm_multi_turn.base_env import BaseInteractionEnv
 
 # When executed as a module: python -m examples.vlm_multi_turn.rollout
-from slime.rollout.sglang_rollout import GenerateState
-from slime.utils.http_utils import post
-from slime.utils.processing_utils import encode_image_for_rollout_engine
-from slime.utils.types import Sample
+from git_cl.drugagent_proj.slime.slime.rollout.sglang_rollout import GenerateState
+from git_cl.drugagent_proj.slime.slime.utils.http_utils import post
+from git_cl.drugagent_proj.slime.slime.utils.processing_utils import encode_image_for_rollout_engine
+from git_cl.drugagent_proj.slime.slime.utils.types import Sample
 
 DEFAULT_ENV_MODULE = "examples.vlm_multi_turn.env_geo3k"
 

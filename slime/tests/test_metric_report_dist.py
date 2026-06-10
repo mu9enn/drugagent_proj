@@ -28,10 +28,10 @@ from __future__ import annotations
 # for the worker-side details. pytest's prepend importmode puts
 # ``tests/`` on sys.path so the bare-name import works without an
 # ``__init__.py``; mp.spawn children inherit the parent's sys.path.
-import _cp_dist_helpers
+import git_cl.drugagent_proj.slime.tests._cp_dist_helpers as _cp_dist_helpers
 import pytest
 import torch
-from _cp_dist_helpers import (
+from git_cl.drugagent_proj.slime.tests._cp_dist_helpers import (
     FOUR_ROLLOUT_EXPECTED_REPORT,
     FOUR_ROLLOUT_RESPONSE_LENGTHS,
     FOUR_ROLLOUT_TOTAL_LENGTHS,
@@ -65,7 +65,7 @@ def _train_step_distributed_worker(
         # Import AFTER the megatron stub override so cp_utils still binds
         # against the pre-installed stub (which we've now pinned for this
         # worker's CP rank).
-        from slime.backends.megatron_utils.cp_utils import get_sum_of_sample_mean, reduce_train_step_metrics
+        from git_cl.drugagent_proj.slime.slime.backends.megatron_utils.cp_utils import get_sum_of_sample_mean, reduce_train_step_metrics
 
         all_total_lengths = FOUR_ROLLOUT_TOTAL_LENGTHS
         all_response_lengths = FOUR_ROLLOUT_RESPONSE_LENGTHS
@@ -194,7 +194,7 @@ def _rollout_log_distributed_worker(
 
     dp_group = init_worker_process_group(rank, world_size, master_port)
     try:
-        from slime.backends.megatron_utils.cp_utils import (
+        from git_cl.drugagent_proj.slime.slime.backends.megatron_utils.cp_utils import (
             gather_and_reduce_log_dict,
             get_sum_of_sample_mean,
             rollout_log_metric_contribution,

@@ -7,7 +7,7 @@ import dataclasses
 import logging
 from typing import Any
 
-from slime.utils.types import Sample
+from git_cl.drugagent_proj.slime.slime.utils.types import Sample
 
 
 logger = logging.getLogger(__name__)

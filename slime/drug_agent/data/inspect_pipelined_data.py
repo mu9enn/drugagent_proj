@@ -10,14 +10,14 @@ import sys
 if __package__ is None or __package__ == "":
     sys.path.append(str(Path(__file__).resolve().parents[2]))
 
-from drug_agent.constants import PIPELINED_DATA, SCHEMA_REPORT_DEFAULT, SFT_OUTPUTS_ANSWER_HIT
-from drug_agent.data.common import (
+from git_cl.drugagent_proj.slime.drug_agent.constants import PIPELINED_DATA, SCHEMA_REPORT_DEFAULT, SFT_OUTPUTS_ANSWER_HIT
+from git_cl.drugagent_proj.slime.drug_agent.data.common import (
     discover_raw_files,
     load_sft_rows_by_id,
     load_usage_summary_by_basename,
     parse_raw_trajectory_file,
 )
-from drug_agent.utils import write_json
+from git_cl.drugagent_proj.slime.drug_agent.utils import write_json
 
 EXPECTED_KEYS = [
     "task_id",

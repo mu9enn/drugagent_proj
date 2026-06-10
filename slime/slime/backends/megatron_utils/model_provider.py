@@ -17,8 +17,8 @@ from megatron.core.transformer.spec_utils import import_module
 from megatron.core.transformer.transformer_config import TransformerConfig
 from megatron.training.arguments import core_transformer_config_from_args
 
-from slime.utils.megatron_bridge_utils import patch_auto_bridge_hf_config
-from slime.utils.misc import load_function
+from git_cl.drugagent_proj.slime.slime.utils.megatron_bridge_utils import patch_auto_bridge_hf_config
+from git_cl.drugagent_proj.slime.slime.utils.misc import load_function
 
 
 # Adapt from https://github.com/volcengine/verl/blob/c3b20575d2bc815fcccd84bddb4c0401fc4b632b/verl/models/llama/megatron/layers/parallel_linear.py#L82
@@ -84,7 +84,7 @@ def _get_model_provider_func(
     if args.megatron_to_hf_mode == "bridge":
         from megatron.bridge import AutoBridge
 
-        import slime_plugins.megatron_bridge  # noqa: F401  # register custom bridges
+        import git_cl.drugagent_proj.slime.slime_plugins.megatron_bridge  # noqa: F401  # register custom bridges
 
         bridge = patch_auto_bridge_hf_config(AutoBridge.from_hf_pretrained(args.hf_checkpoint, trust_remote_code=True))
         provider = bridge.to_megatron_provider(load_weights=False)

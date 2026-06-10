@@ -21,7 +21,7 @@ import argparse
 
 import pytest
 
-from slime.utils.types import Sample
+from git_cl.drugagent_proj.slime.slime.utils.types import Sample
 
 
 # ---------------------------------------------------------------------------

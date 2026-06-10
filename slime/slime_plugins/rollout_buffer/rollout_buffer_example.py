@@ -7,9 +7,9 @@ import requests
 import wandb
 from transformers import AutoTokenizer
 
-from slime.utils.async_utils import run
-from slime.utils.mask_utils import MultiTurnLossMaskGenerator
-from slime.utils.types import Sample
+from git_cl.drugagent_proj.slime.slime.utils.async_utils import run
+from git_cl.drugagent_proj.slime.slime.utils.mask_utils import MultiTurnLossMaskGenerator
+from git_cl.drugagent_proj.slime.slime.utils.types import Sample
 
 __all__ = ["generate_rollout"]
 
@@ -123,7 +123,7 @@ def log_raw_info(args, all_meta_info, rollout_id):
                         wandb.log(log_dict)
 
                     if args.use_tensorboard:
-                        from slime.utils.tensorboard_utils import _TensorboardAdapter
+                        from git_cl.drugagent_proj.slime.slime.utils.tensorboard_utils import _TensorboardAdapter
 
                         tb = _TensorboardAdapter(args)
                         tb.log(data=log_dict, step=step)

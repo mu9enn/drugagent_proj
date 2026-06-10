@@ -163,7 +163,7 @@ def _get_role_args_for_logging(args, role):
     if getattr(args, "megatron_config_path", None) is None:
         return args
 
-    from slime.utils.arguments import parse_megatron_role_args
+    from git_cl.drugagent_proj.slime.slime.utils.arguments import parse_megatron_role_args
 
     return parse_megatron_role_args(args, args.megatron_config_path, role=role)
 

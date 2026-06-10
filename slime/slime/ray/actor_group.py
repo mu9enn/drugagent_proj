@@ -1,10 +1,10 @@
 import os
 
-import ray
+import git_cl.drugagent_proj.slime.slime.ray as ray
 from ray.util.placement_group import PlacementGroup
 from ray.util.scheduling_strategies import PlacementGroupSchedulingStrategy
 
-from slime.ray.utils import NOSET_VISIBLE_DEVICES_ENV_VARS_LIST
+from git_cl.drugagent_proj.slime.slime.ray.utils import NOSET_VISIBLE_DEVICES_ENV_VARS_LIST
 
 
 class RayTrainGroup:
@@ -85,7 +85,7 @@ class RayTrainGroup:
         if self.args.use_routing_replay and self.role == "actor":
             env_vars["ENABLE_ROUTING_REPLAY"] = "1"
 
-        from slime.backends.megatron_utils.actor import MegatronTrainRayActor
+        from git_cl.drugagent_proj.slime.slime.backends.megatron_utils.actor import MegatronTrainRayActor
 
         actor_impl = MegatronTrainRayActor
 

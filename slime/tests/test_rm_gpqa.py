@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import pytest
 
-from slime.rollout.rm_hub.gpqa import DEFAULT_VALID_LETTERS, _extract_letter_from_response, compute_gpqa_reward
+from git_cl.drugagent_proj.slime.slime.rollout.rm_hub.gpqa import DEFAULT_VALID_LETTERS, _extract_letter_from_response, compute_gpqa_reward
 
 # ---------------------------------------------------------------------------
 # _extract_letter_from_response

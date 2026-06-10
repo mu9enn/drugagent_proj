@@ -10,22 +10,22 @@ try:
     from ._shared import get_contract_path, install_paths, install_stubs, run_contract_test_for_file
 except ImportError:
     try:
-        from plugin_contracts._shared import (
+        from git_cl.drugagent_proj.slime.tests.plugin_contracts._shared import (
             get_contract_path,
             install_paths,
             install_stubs,
             run_contract_test_for_file,
         )
     except ImportError:
-        from _shared import get_contract_path, install_paths, install_stubs, run_contract_test_for_file
+        from git_cl.drugagent_proj.slime.tests.plugin_contracts._shared import get_contract_path, install_paths, install_stubs, run_contract_test_for_file
 
 install_paths()
 install_stubs()
 
 NUM_GPUS = 0
 
-from slime.utils.misc import load_function
-from slime.utils.types import Sample
+from git_cl.drugagent_proj.slime.slime.utils.misc import load_function
+from git_cl.drugagent_proj.slime.slime.utils.types import Sample
 
 
 def run_contract_test_file() -> None:

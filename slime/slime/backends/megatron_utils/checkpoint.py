@@ -8,7 +8,7 @@ from megatron.training.checkpointing import load_checkpoint as _load_checkpoint_
 from megatron.training.checkpointing import save_checkpoint
 from megatron.training.global_vars import get_args
 
-from slime.utils import megatron_bridge_utils
+from git_cl.drugagent_proj.slime.slime.utils import megatron_bridge_utils
 
 try:
     # Here we patch out the `validate_non_overlapping_shards_metadata` in both functions
@@ -130,7 +130,7 @@ def _load_checkpoint_hf(ddp_model, optimizer, args, load_path: str):
     assert args.megatron_to_hf_mode == "bridge", "Only bridge mode is supported for loading HF checkpoint"
     from megatron.bridge import AutoBridge
 
-    import slime_plugins.megatron_bridge  # noqa: F401
+    import git_cl.drugagent_proj.slime.slime_plugins.megatron_bridge  # noqa: F401
 
     logger.info(f"Load checkpoint from HuggingFace model into Megatron (path={load_path})")
 

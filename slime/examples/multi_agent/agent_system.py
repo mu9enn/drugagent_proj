@@ -4,9 +4,9 @@ import time
 import traceback
 from copy import deepcopy
 
-from slime.rollout.rm_hub import batched_async_rm
-from slime.utils.http_utils import post
-from slime.utils.types import Sample
+from git_cl.drugagent_proj.slime.slime.rollout.rm_hub import batched_async_rm
+from git_cl.drugagent_proj.slime.slime.utils.http_utils import post
+from git_cl.drugagent_proj.slime.slime.utils.types import Sample
 
 from .prompts import SOLVER_PROMPT_TEMPLATE, generate_rewriter_template, generate_select_template
 

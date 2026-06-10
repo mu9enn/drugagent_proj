@@ -41,4 +41,4 @@ except ImportError:
 
 logging.getLogger("megatron").setLevel(logging.WARNING)
 
-from . import megatron_patch  # noqa: F401, E402
+from ......slime.slime.backends.megatron_utils import megatron_patch  # noqa: F401, E402

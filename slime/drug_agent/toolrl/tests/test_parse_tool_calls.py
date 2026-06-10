@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from drug_agent.toolrl.parse_tool_calls import parse_tool_calls
+from git_cl.drugagent_proj.slime.drug_agent.toolrl.parse_tool_calls import parse_tool_calls
 
 
 def test_parse_tool_calls_single_and_multi_call():

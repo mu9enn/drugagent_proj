@@ -1,7 +1,7 @@
 import torch
 
-from slime.rollout.filter_hub.base_types import DynamicFilterOutput
-from slime.utils.types import Sample
+from git_cl.drugagent_proj.slime.slime.rollout.filter_hub.base_types import DynamicFilterOutput
+from git_cl.drugagent_proj.slime.slime.utils.types import Sample
 
 __all__ = ["check_reward_nonzero_std"]
 

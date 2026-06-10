@@ -40,7 +40,7 @@ from dataclasses import asdict, dataclass, field, replace
 from queue import Queue
 
 import numpy as np
-import ray
+import git_cl.drugagent_proj.slime.slime.ray as ray
 import torch
 import torch.distributed as dist
 from megatron.core import mpu
@@ -48,8 +48,8 @@ from ray.actor import ActorHandle
 from safetensors.torch import save as st_save_bytes
 from tqdm import tqdm
 
-from slime.utils.distributed_utils import get_gloo_group
-from slime.utils.timer import Timer, timer
+from git_cl.drugagent_proj.slime.slime.utils.distributed_utils import get_gloo_group
+from git_cl.drugagent_proj.slime.slime.utils.timer import Timer, timer
 
 from ..sglang import DeltaEncoding, DeltaParam, DeltaSpec
 from .update_weight_from_distributed import UpdateWeightFromDistributed
@@ -528,7 +528,7 @@ class UpdateWeightFromDistributedDelta(UpdateWeightFromDistributed):
             )
             self._rpc_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="delta-publish-rpc")
             if getattr(args, "custom_delta_pre_push_path", None):
-                from slime.utils.misc import load_function
+                from git_cl.drugagent_proj.slime.slime.utils.misc import load_function
 
                 self._pre_push_hook = load_function(args.custom_delta_pre_push_path)
 

@@ -6,9 +6,9 @@ from strands import Agent, tool
 from strands_sglang import SGLangModel, ToolLimiter, get_client_from_slime_args
 from strands_sglang.tool_parsers import HermesToolParser
 
-from slime.rollout.rm_hub.math_dapo_utils import compute_score as math_dapo_compute_score
-from slime.rollout.sglang_rollout import GenerateState
-from slime.utils.types import Sample
+from git_cl.drugagent_proj.slime.slime.rollout.rm_hub.math_dapo_utils import compute_score as math_dapo_compute_score
+from git_cl.drugagent_proj.slime.slime.rollout.sglang_rollout import GenerateState
+from git_cl.drugagent_proj.slime.slime.utils.types import Sample
 
 logger = logging.getLogger(__name__)
 

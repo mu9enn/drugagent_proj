@@ -5,7 +5,7 @@ from contextlib import contextmanager
 import torch
 import torch.distributed as dist
 
-from slime.utils.memory_utils import available_memory, clear_memory, print_memory
+from git_cl.drugagent_proj.slime.slime.utils.memory_utils import available_memory, clear_memory, print_memory
 
 logger = logging.getLogger(__name__)
 

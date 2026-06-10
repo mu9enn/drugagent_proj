@@ -10,7 +10,7 @@ from time import sleep
 import requests
 from openai import OpenAI
 from tqdm import tqdm
-from slime.rollout.rm_hub import get_deepscaler_rule_based_reward
+from git_cl.drugagent_proj.slime.slime.rollout.rm_hub import get_deepscaler_rule_based_reward
 
 TASK_TYPE = "math"
 

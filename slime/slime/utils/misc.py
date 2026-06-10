@@ -1,7 +1,7 @@
 import importlib
 import subprocess
 
-from slime.utils.http_utils import is_port_available
+from git_cl.drugagent_proj.slime.slime.utils.http_utils import is_port_available
 
 
 def load_function(path):
@@ -56,7 +56,7 @@ def exec_command(cmd: str, capture_output: bool = False) -> str | None:
 def get_current_node_ip():
     # Lazy import so CPU-only code paths (rm_hub scoring, plugin contracts,
     # etc.) can use other helpers in this module without requiring ray.
-    import ray
+    import git_cl.drugagent_proj.slime.slime.ray as ray
 
     address = ray._private.services.get_node_ip_address()
     # strip ipv6 address

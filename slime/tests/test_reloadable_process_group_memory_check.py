@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from slime.utils import reloadable_process_group as rpg
+from git_cl.drugagent_proj.slime.slime.utils import reloadable_process_group as rpg
 
 
 @pytest.mark.unit

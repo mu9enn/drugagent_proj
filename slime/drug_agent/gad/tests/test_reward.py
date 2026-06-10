@@ -1,7 +1,7 @@
 import unittest
 from types import SimpleNamespace
 
-from drug_agent.gad.reward import _rule_components
+from git_cl.drugagent_proj.slime.drug_agent.gad.reward import _rule_components
 
 
 FINAL = '<thought>done</thought><final_answer>{"answer":{"summary":"ok","evidence":[],"result":{}}}</final_answer>'

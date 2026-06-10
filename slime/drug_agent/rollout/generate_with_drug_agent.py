@@ -6,19 +6,19 @@ import os
 import threading
 from typing import Any
 
-from slime.rollout.sglang_rollout import GenerateState
-from slime.utils.http_utils import post
-from slime.utils.types import Sample
+from git_cl.drugagent_proj.slime.slime.rollout.sglang_rollout import GenerateState
+from git_cl.drugagent_proj.slime.slime.utils.http_utils import post
+from git_cl.drugagent_proj.slime.slime.utils.types import Sample
 
-from drug_agent.protocol.parse_policy import (
+from git_cl.drugagent_proj.slime.drug_agent.protocol.parse_policy import (
     parse_action_with_policy,
     resolve_rollout_controls,
 )
-from drug_agent.protocol.action_schema import ACTION_FINAL_ANSWER, ACTION_TOOL_CALL
-from drug_agent.tools.tool_executor import MCPToolExecutor
-from drug_agent.tools.tool_registry import ToolRegistry
-from drug_agent.tools.tool_success import make_validation_failed_result
-from drug_agent.utils import normalize_tool_name, to_jsonable
+from git_cl.drugagent_proj.slime.drug_agent.protocol.action_schema import ACTION_FINAL_ANSWER, ACTION_TOOL_CALL
+from git_cl.drugagent_proj.slime.drug_agent.tools.tool_executor import MCPToolExecutor
+from git_cl.drugagent_proj.slime.drug_agent.tools.tool_registry import ToolRegistry
+from git_cl.drugagent_proj.slime.drug_agent.tools.tool_success import make_validation_failed_result
+from git_cl.drugagent_proj.slime.drug_agent.utils import normalize_tool_name, to_jsonable
 
 _RUNTIME_LOCK = threading.Lock()
 _RUNTIME: dict[str, Any] | None = None

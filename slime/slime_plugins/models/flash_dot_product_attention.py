@@ -18,7 +18,7 @@ from megatron.core.transformer.utils import is_layer_window_attention
 from megatron.core.utils import divide
 from torch import Tensor
 
-from slime_plugins.models.learnable_softmax_attention import learnable_softmax_flash_attn_varlen
+from git_cl.drugagent_proj.slime.slime_plugins.models.learnable_softmax_attention import learnable_softmax_flash_attn_varlen
 
 
 class FlashDotProductAttention(MegatronModule):

@@ -32,9 +32,9 @@ import queue
 import threading
 import time
 
-from slime.rollout.sglang_rollout import GenerateState, generate_and_rm_group
-from slime.utils.async_utils import run
-from slime.utils.types import Sample
+from git_cl.drugagent_proj.slime.slime.rollout.sglang_rollout import GenerateState, generate_and_rm_group
+from git_cl.drugagent_proj.slime.slime.utils.async_utils import run
+from git_cl.drugagent_proj.slime.slime.utils.types import Sample
 
 __all__ = [
     "AsyncRolloutWorker",

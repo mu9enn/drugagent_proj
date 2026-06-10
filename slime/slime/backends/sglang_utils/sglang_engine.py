@@ -13,8 +13,8 @@ from sglang.srt.server_args import ServerArgs
 from sglang.srt.utils import kill_process_tree
 from urllib3.exceptions import NewConnectionError
 
-from slime.ray.ray_actor import RayActor
-from slime.utils.http_utils import get_host_info
+from git_cl.drugagent_proj.slime.slime.ray.ray_actor import RayActor
+from git_cl.drugagent_proj.slime.slime.utils.http_utils import get_host_info
 
 logger = logging.getLogger(__name__)
 

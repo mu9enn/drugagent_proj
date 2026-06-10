@@ -13,7 +13,7 @@ Usage:
 
 from megatron.core.models.gpt.gpt_layer_specs import get_gpt_decoder_block_spec
 
-from slime_plugins.models.flash_dot_product_attention import FlashDotProductAttention
+from git_cl.drugagent_proj.slime.slime_plugins.models.flash_dot_product_attention import FlashDotProductAttention
 
 
 def _replace_core_attention_in_spec(spec, replacement_cls):

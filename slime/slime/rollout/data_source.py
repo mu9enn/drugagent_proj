@@ -6,10 +6,10 @@ from pathlib import Path
 
 import torch
 
-from slime.utils.data import Dataset
-from slime.utils.misc import load_function
-from slime.utils.processing_utils import load_processor, load_tokenizer
-from slime.utils.types import Sample
+from git_cl.drugagent_proj.slime.slime.utils.data import Dataset
+from git_cl.drugagent_proj.slime.slime.utils.misc import load_function
+from git_cl.drugagent_proj.slime.slime.utils.processing_utils import load_processor, load_tokenizer
+from git_cl.drugagent_proj.slime.slime.utils.types import Sample
 
 logger = logging.getLogger(__name__)
 

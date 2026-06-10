@@ -3,8 +3,8 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from drug_agent.toolrl.molclaw_reward import _reward_one
-from drug_agent.utils import clamp, to_jsonable
+from git_cl.drugagent_proj.slime.drug_agent.toolrl.molclaw_reward import _reward_one
+from git_cl.drugagent_proj.slime.drug_agent.utils import clamp, to_jsonable
 
 
 def _teacher_response(sample: Any) -> str:

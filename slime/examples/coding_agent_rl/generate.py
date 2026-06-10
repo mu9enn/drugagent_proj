@@ -52,12 +52,12 @@ import traceback
 from dataclasses import dataclass
 from typing import Any
 
-from slime.agent.trajectory import fan_out_sample_segments
-from slime.utils.misc import SingletonMeta
-from slime.utils.processing_utils import load_tokenizer
-from slime.utils.types import Sample
+from git_cl.drugagent_proj.slime.slime.agent.trajectory import fan_out_sample_segments
+from git_cl.drugagent_proj.slime.slime.utils.misc import SingletonMeta
+from git_cl.drugagent_proj.slime.slime.utils.processing_utils import load_tokenizer
+from git_cl.drugagent_proj.slime.slime.utils.types import Sample
 
-from . import middleware, sandbox
+from .....slime.examples.coding_agent_rl import middleware, sandbox
 from .aiohttp_threaded import run_app_in_thread
 
 logger = logging.getLogger(__name__)

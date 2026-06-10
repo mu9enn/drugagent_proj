@@ -11,7 +11,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any
 
-from slime.utils.types import Sample
+from git_cl.drugagent_proj.slime.slime.utils.types import Sample
 
 TRACE_VERSION = 1
 SGLANG_TRACE_META_KEYS = (

@@ -128,7 +128,7 @@ def cp_chunk_response_tensor(x, total_length: int, response_length: int):
     """
     import torch
 
-    from slime.backends.megatron_utils.cp_utils import get_logits_and_tokens_offset_with_cp
+    from git_cl.drugagent_proj.slime.slime.backends.megatron_utils.cp_utils import get_logits_and_tokens_offset_with_cp
 
     prompt_length = total_length - response_length
     _, _, _, tokens_offset = get_logits_and_tokens_offset_with_cp(total_length, response_length)

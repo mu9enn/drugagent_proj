@@ -21,11 +21,11 @@ from __future__ import annotations
 # in sys.modules first. pytest's prepend importmode puts this file's
 # directory (``tests/``) on sys.path, which is what makes the bare-name
 # import work without an ``__init__.py``.
-import _cp_dist_helpers  # noqa: F401
+import git_cl.drugagent_proj.slime.tests._cp_dist_helpers as _cp_dist_helpers  # noqa: F401
 import pytest
 import torch
 
-from slime.backends.megatron_utils.cp_utils import (  # noqa: E402
+from git_cl.drugagent_proj.slime.slime.backends.megatron_utils.cp_utils import (  # noqa: E402
     get_logits_and_tokens_offset_with_cp,
     get_sum_of_sample_mean,
     reduce_train_step_metrics,

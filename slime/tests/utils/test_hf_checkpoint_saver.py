@@ -5,7 +5,7 @@ import pytest
 import torch
 from safetensors.torch import load_file
 
-from slime.backends.megatron_utils.hf_checkpoint_saver import (
+from git_cl.drugagent_proj.slime.slime.backends.megatron_utils.hf_checkpoint_saver import (
     _clear_existing_hf_weights,
     _copy_hf_assets,
     _SafetensorShardWriter,

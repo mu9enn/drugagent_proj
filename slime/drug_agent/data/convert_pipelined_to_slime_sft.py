@@ -11,10 +11,10 @@ import sys
 if __package__ is None or __package__ == "":
     sys.path.append(str(Path(__file__).resolve().parents[2]))
 
-from drug_agent.constants import RAW_TASK_TYPES, SFT_OUT_ROOT, SFT_OUTPUTS_ANSWER_HIT
-from drug_agent.data.common import load_usage_summary_by_basename
-from drug_agent.protocol.action_schema import ACTION_FINAL_ANSWER, ACTION_TOOL_CALL
-from drug_agent.utils import normalize_tool_name, write_json, write_jsonl
+from git_cl.drugagent_proj.slime.drug_agent.constants import RAW_TASK_TYPES, SFT_OUT_ROOT, SFT_OUTPUTS_ANSWER_HIT
+from git_cl.drugagent_proj.slime.drug_agent.data.common import load_usage_summary_by_basename
+from git_cl.drugagent_proj.slime.drug_agent.protocol.action_schema import ACTION_FINAL_ANSWER, ACTION_TOOL_CALL
+from git_cl.drugagent_proj.slime.drug_agent.utils import normalize_tool_name, write_json, write_jsonl
 
 
 _FENCED_BLOCK_RE = re.compile(r"```[a-zA-Z0-9_-]*\n(.*?)```", flags=re.DOTALL)

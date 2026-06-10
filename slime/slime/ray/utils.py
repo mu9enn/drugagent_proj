@@ -1,9 +1,9 @@
 # Adapted from https://github.com/OpenRLHF/OpenRLHF/blob/10c733694ed9fbb78a0a2ff6a05efc7401584d46/openrlhf/trainer/ray/utils.py#L1
 import os
 
-import ray
+import git_cl.drugagent_proj.slime.slime.ray as ray
 import torch
-from slime.ray.ray_actor import RayActor
+from git_cl.drugagent_proj.slime.slime.ray.ray_actor import RayActor
 
 
 # Refer to

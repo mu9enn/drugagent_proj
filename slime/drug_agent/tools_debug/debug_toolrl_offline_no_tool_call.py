@@ -12,8 +12,8 @@ from typing import Any
 if __package__ is None or __package__ == "":
     sys.path.append(str(Path(__file__).resolve().parents[2]))
 
-from drug_agent.toolrl.molclaw_reward import reward_func
-from drug_agent.toolrl.parse_tool_calls import parse_tool_calls
+from git_cl.drugagent_proj.slime.drug_agent.toolrl.molclaw_reward import reward_func
+from git_cl.drugagent_proj.slime.drug_agent.toolrl.parse_tool_calls import parse_tool_calls
 
 
 MCP_ENV_KEYS = (

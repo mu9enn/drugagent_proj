@@ -1,6 +1,6 @@
 import torch
 
-from slime.backends.megatron_utils.misc_utils import strip_param_name_prefix
+from git_cl.drugagent_proj.slime.slime.backends.megatron_utils.misc_utils import strip_param_name_prefix
 
 
 def remove_padding(name: str, param: torch.Tensor, vocab_size: int) -> torch.Tensor:

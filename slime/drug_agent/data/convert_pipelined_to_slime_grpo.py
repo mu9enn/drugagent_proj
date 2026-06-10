@@ -10,14 +10,14 @@ import sys
 if __package__ is None or __package__ == "":
     sys.path.append(str(Path(__file__).resolve().parents[2]))
 
-from drug_agent.constants import (
+from git_cl.drugagent_proj.slime.drug_agent.constants import (
     DEFAULT_MAX_STEPS,
     GRPO_OUT_ROOT,
     PIPELINED_DATA,
     RAW_TASK_TYPES,
     SFT_OUTPUTS_ANSWER_HIT,
 )
-from drug_agent.data.common import (
+from git_cl.drugagent_proj.slime.drug_agent.data.common import (
     basename_to_task_type,
     discover_raw_files,
     index_rl_rows,
@@ -25,8 +25,8 @@ from drug_agent.data.common import (
     load_usage_summary_by_basename,
     parse_raw_trajectory_file,
 )
-from drug_agent.protocol.prompts import build_grpo_prompt_messages
-from drug_agent.utils import normalize_tool_name, write_json, write_jsonl
+from git_cl.drugagent_proj.slime.drug_agent.protocol.prompts import build_grpo_prompt_messages
+from git_cl.drugagent_proj.slime.drug_agent.utils import normalize_tool_name, write_json, write_jsonl
 
 
 def load_allowlist(path: Path | None) -> set[str]:

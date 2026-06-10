@@ -3,7 +3,7 @@ import unittest
 
 class TestBradleyTerry(unittest.TestCase):
     def test_batch_normalization_is_order_independent(self):
-        from drug_agent.gad.discriminator import GADDiscriminator
+        from git_cl.drugagent_proj.slime.drug_agent.gad.discriminator import GADDiscriminator
 
         discriminator = object.__new__(GADDiscriminator)
         discriminator.running_count = 0
@@ -18,7 +18,7 @@ class TestBradleyTerry(unittest.TestCase):
             import torch
         except ImportError:
             self.skipTest("torch is only available on the GPU worker")
-        from drug_agent.gad.discriminator import bradley_terry_loss
+        from git_cl.drugagent_proj.slime.drug_agent.gad.discriminator import bradley_terry_loss
 
         positive = torch.tensor([0.0, 0.5], requires_grad=True)
         negative = torch.tensor([0.5, 0.0], requires_grad=True)

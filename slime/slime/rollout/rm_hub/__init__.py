@@ -6,8 +6,8 @@ import aiohttp
 
 logger = logging.getLogger(__name__)
 
-from slime.utils.misc import load_function
-from slime.utils.types import Sample
+from git_cl.drugagent_proj.slime.slime.utils.misc import load_function
+from git_cl.drugagent_proj.slime.slime.utils.types import Sample
 
 from .deepscaler import get_deepscaler_rule_based_reward
 from .f1 import f1_score

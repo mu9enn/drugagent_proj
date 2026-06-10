@@ -1,9 +1,9 @@
 import ray
 
-from slime.ray.placement_group import create_placement_groups, create_rollout_manager, create_training_models
-from slime.utils.arguments import parse_args
-from slime.utils.logging_utils import configure_logger, finish_tracking, init_tracking, update_tracking_open_metrics
-from slime.utils.misc import should_run_periodic_action
+from git_cl.drugagent_proj.slime.slime.ray.placement_group import create_placement_groups, create_rollout_manager, create_training_models
+from git_cl.drugagent_proj.slime.slime.utils.arguments import parse_args
+from git_cl.drugagent_proj.slime.slime.utils.logging_utils import configure_logger, finish_tracking, init_tracking, update_tracking_open_metrics
+from git_cl.drugagent_proj.slime.slime.utils.misc import should_run_periodic_action
 
 
 # The framework supports other asynchronous approaches such as fully async (which is shown in examples/full_async).

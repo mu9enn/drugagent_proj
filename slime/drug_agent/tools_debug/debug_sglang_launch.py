@@ -13,8 +13,8 @@ from typing import Any
 if __package__ is None or __package__ == "":
     sys.path.append(str(Path(__file__).resolve().parents[2]))
 
-from drug_agent.constants import VERL_DATA
-from drug_agent.tools_debug.sglang_launcher import detect_sglang_launch_command
+from git_cl.drugagent_proj.slime.drug_agent.constants import VERL_DATA
+from git_cl.drugagent_proj.slime.drug_agent.tools_debug.sglang_launcher import detect_sglang_launch_command
 
 
 def _default_model_path() -> Path:

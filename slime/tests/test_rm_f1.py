@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import pytest
 
-from slime.rollout.rm_hub.f1 import f1_score, normalize_answer
+from git_cl.drugagent_proj.slime.slime.rollout.rm_hub.f1 import f1_score, normalize_answer
 
 
 @pytest.mark.unit

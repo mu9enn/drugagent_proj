@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import pytest
 
-from slime.rollout.rm_hub.deepscaler import get_deepscaler_rule_based_reward
+from git_cl.drugagent_proj.slime.slime.rollout.rm_hub.deepscaler import get_deepscaler_rule_based_reward
 
 
 @pytest.mark.unit

@@ -13,7 +13,7 @@ on the updatable (actor) server, testing:
 import os
 import tempfile
 
-import slime.utils.external_utils.command_utils as U
+import git_cl.drugagent_proj.slime.slime.utils.external_utils.command_utils as U
 
 TIGHT_DEVICE_MEMORY = U.get_bool_env_var("SLIME_TEST_TIGHT_DEVICE_MEMORY", "1")
 

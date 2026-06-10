@@ -1,6 +1,6 @@
 import unittest
 
-from drug_agent.gad.data import convert_records
+from git_cl.drugagent_proj.slime.drug_agent.gad.data import convert_records
 
 
 TOOL = '<thought>inspect</thought><tool_call>{"tool_name":"is_valid_smiles","arguments":{"smiles_list":["CCO"]}}</tool_call>'

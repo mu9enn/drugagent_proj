@@ -6,9 +6,9 @@ import re
 
 from qa_em_format import compute_score_em
 
-from slime.rollout.sglang_rollout import GenerateState
-from slime.utils.http_utils import post
-from slime.utils.types import Sample
+from git_cl.drugagent_proj.slime.slime.rollout.sglang_rollout import GenerateState
+from git_cl.drugagent_proj.slime.slime.utils.http_utils import post
+from git_cl.drugagent_proj.slime.slime.utils.types import Sample
 
 # Configuration for Search-R1
 SEARCH_R1_CONFIGS = {

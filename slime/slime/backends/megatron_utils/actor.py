@@ -5,24 +5,24 @@ from argparse import Namespace
 from contextlib import nullcontext
 
 import numpy as np
-import ray
+import git_cl.drugagent_proj.slime.slime.ray as ray
 import torch
 import torch.distributed as dist
 from megatron.core import mpu
 from torch_memory_saver import torch_memory_saver
 from transformers import AutoConfig, AutoTokenizer
 
-from slime.ray.train_actor import TrainRayActor
-from slime.utils import train_dump_utils
-from slime.utils.data import process_rollout_data
-from slime.utils.distributed_utils import get_gloo_group
-from slime.utils.logging_utils import init_tracking
-from slime.utils.memory_utils import clear_memory, print_memory
-from slime.utils.misc import Box
-from slime.utils.reloadable_process_group import destroy_process_groups, monkey_patch_torch_dist, reload_process_groups
-from slime.utils.routing_replay import RoutingReplay
-from slime.utils.timer import Timer, inverse_timer, timer, with_defer
-from slime.utils.types import RolloutBatch
+from git_cl.drugagent_proj.slime.slime.ray.train_actor import TrainRayActor
+from git_cl.drugagent_proj.slime.slime.utils import train_dump_utils
+from git_cl.drugagent_proj.slime.slime.utils.data import process_rollout_data
+from git_cl.drugagent_proj.slime.slime.utils.distributed_utils import get_gloo_group
+from git_cl.drugagent_proj.slime.slime.utils.logging_utils import init_tracking
+from git_cl.drugagent_proj.slime.slime.utils.memory_utils import clear_memory, print_memory
+from git_cl.drugagent_proj.slime.slime.utils.misc import Box
+from git_cl.drugagent_proj.slime.slime.utils.reloadable_process_group import destroy_process_groups, monkey_patch_torch_dist, reload_process_groups
+from git_cl.drugagent_proj.slime.slime.utils.routing_replay import RoutingReplay
+from git_cl.drugagent_proj.slime.slime.utils.timer import Timer, inverse_timer, timer, with_defer
+from git_cl.drugagent_proj.slime.slime.utils.types import RolloutBatch
 
 from ...utils.profile_utils import TrainProfiler
 from ...utils.tensor_backper import TensorBackuper
@@ -165,7 +165,7 @@ class MegatronTrainRayActor(TrainRayActor):
 
         self.rollout_data_postprocess = None
         if self.args.rollout_data_postprocess_path is not None:
-            from slime.utils.misc import load_function
+            from git_cl.drugagent_proj.slime.slime.utils.misc import load_function
 
             self.rollout_data_postprocess = load_function(self.args.rollout_data_postprocess_path)
 
@@ -301,7 +301,7 @@ class MegatronTrainRayActor(TrainRayActor):
         from megatron.core.transformer.transformer_block import get_num_layers_to_build
         from megatron.core.transformer.transformer_layer import get_transformer_layer_offset
 
-        from slime.utils.routing_replay import RoutingReplay
+        from git_cl.drugagent_proj.slime.slime.utils.routing_replay import RoutingReplay
 
         for iterator in data_iterator:
             iterator.reset()
@@ -432,7 +432,7 @@ class MegatronTrainRayActor(TrainRayActor):
         )
 
         if mpu.is_pipeline_last_stage() and "values" in rollout_data:
-            from slime.backends.megatron_utils.data import tensors_to_cpu
+            from git_cl.drugagent_proj.slime.slime.backends.megatron_utils.data import tensors_to_cpu
 
             return {"values": tensors_to_cpu(rollout_data["values"])}
         return {}
@@ -508,7 +508,7 @@ class MegatronTrainRayActor(TrainRayActor):
                     if external_data is not None and mpu.is_pipeline_last_stage():
                         values = external_data.get("values")
                         if values is not None:
-                            from slime.backends.megatron_utils.data import tensors_to_gpu
+                            from git_cl.drugagent_proj.slime.slime.backends.megatron_utils.data import tensors_to_gpu
 
                             rollout_data["values"] = tensors_to_gpu(values)
                 if self._active_model_tag != "actor":
@@ -584,7 +584,7 @@ class MegatronTrainRayActor(TrainRayActor):
             maybe_finalize_async_save(blocking=True)
 
         if self.args.save_hf is not None and self.role == "actor":
-            from slime.backends.megatron_utils.model import save_hf_model
+            from git_cl.drugagent_proj.slime.slime.backends.megatron_utils.model import save_hf_model
 
             save_hf_model(self.args, rollout_id, self.model)
 

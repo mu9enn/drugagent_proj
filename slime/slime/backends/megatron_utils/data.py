@@ -9,10 +9,10 @@ import torch.nn.functional as F
 from megatron.core import mpu
 from megatron.core.packed_seq_params import PackedSeqParams
 
-from slime.utils import train_metric_utils
-from slime.utils.flops_utils import calculate_fwd_flops
-from slime.utils.metric_utils import compute_pass_rate, compute_rollout_step
-from slime.utils.types import RolloutBatch
+from git_cl.drugagent_proj.slime.slime.utils import train_metric_utils
+from git_cl.drugagent_proj.slime.slime.utils.flops_utils import calculate_fwd_flops
+from git_cl.drugagent_proj.slime.slime.utils.metric_utils import compute_pass_rate, compute_rollout_step
+from git_cl.drugagent_proj.slime.slime.utils.types import RolloutBatch
 
 from ...utils import logging_utils
 from .cp_utils import (

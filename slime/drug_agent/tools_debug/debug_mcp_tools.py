@@ -11,9 +11,9 @@ from typing import Any
 if __package__ is None or __package__ == "":
     sys.path.append(str(Path(__file__).resolve().parents[2]))
 
-from drug_agent.tools.tool_executor import MCPToolExecutor
-from drug_agent.tools.tool_registry import ToolRegistry, load_allowlist
-from drug_agent.offline_guard import assert_tool_environment_allowed
+from git_cl.drugagent_proj.slime.drug_agent.tools.tool_executor import MCPToolExecutor
+from git_cl.drugagent_proj.slime.drug_agent.tools.tool_registry import ToolRegistry, load_allowlist
+from git_cl.drugagent_proj.slime.drug_agent.offline_guard import assert_tool_environment_allowed
 
 REQUIRED_ENV_KEYS = (
     "MOLCLAW_SCP_SERVER_URL",

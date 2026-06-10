@@ -8,10 +8,10 @@ from typing import Any
 import yaml
 from sglang_router.launch_router import RouterArgs
 
-from slime.backends.sglang_utils.arguments import sglang_parse_args
-from slime.backends.sglang_utils.arguments import validate_args as sglang_validate_args
-from slime.utils.eval_config import EvalDatasetConfig, build_eval_dataset_configs, ensure_dataset_list
-from slime.utils.logging_utils import configure_logger
+from git_cl.drugagent_proj.slime.slime.backends.sglang_utils.arguments import sglang_parse_args
+from git_cl.drugagent_proj.slime.slime.backends.sglang_utils.arguments import validate_args as sglang_validate_args
+from git_cl.drugagent_proj.slime.slime.utils.eval_config import EvalDatasetConfig, build_eval_dataset_configs, ensure_dataset_list
+from git_cl.drugagent_proj.slime.slime.utils.logging_utils import configure_logger
 
 logger = logging.getLogger(__name__)
 
@@ -1504,8 +1504,8 @@ def parse_args(add_custom_arguments=None):
     # Phase 2: Parse megatron + slime args.
     # Uses ignore_unknown_args=True so that --sglang-* and pre-parsed CLI flags
     # are silently ignored by the megatron parser.
-    from slime.backends.megatron_utils.arguments import megatron_parse_args
-    from slime.backends.megatron_utils.arguments import validate_args as megatron_validate_args
+    from git_cl.drugagent_proj.slime.slime.backends.megatron_utils.arguments import megatron_parse_args
+    from git_cl.drugagent_proj.slime.slime.backends.megatron_utils.arguments import validate_args as megatron_validate_args
 
     args = megatron_parse_args(
         extra_args_provider=add_slime_arguments,

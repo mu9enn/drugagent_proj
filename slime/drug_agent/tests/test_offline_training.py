@@ -2,8 +2,8 @@ import os
 import unittest
 from unittest.mock import patch
 
-from drug_agent.offline_guard import assert_offline_training_environment, assert_tool_environment_allowed
-from drug_agent.tools_debug.audit_offline_training import audit
+from git_cl.drugagent_proj.slime.drug_agent.offline_guard import assert_offline_training_environment, assert_tool_environment_allowed
+from git_cl.drugagent_proj.slime.drug_agent.tools_debug.audit_offline_training import audit
 
 
 class TestOfflineTrainingBoundary(unittest.TestCase):
@@ -18,7 +18,7 @@ class TestOfflineTrainingBoundary(unittest.TestCase):
                 assert_tool_environment_allowed("test MCP access")
 
     def test_executor_fails_before_creating_runtime(self):
-        from drug_agent.tools.tool_executor import MCPToolExecutor
+        from git_cl.drugagent_proj.slime.drug_agent.tools.tool_executor import MCPToolExecutor
 
         with patch.dict(os.environ, {}, clear=True):
             with self.assertRaises(RuntimeError):

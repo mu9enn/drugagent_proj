@@ -14,14 +14,14 @@ from typing import Any
 if __package__ is None or __package__ == "":
     sys.path.append(str(Path(__file__).resolve().parents[2]))
 
-from drug_agent.constants import VERL_DATA
-from drug_agent.protocol.parse_policy import (
+from git_cl.drugagent_proj.slime.drug_agent.constants import VERL_DATA
+from git_cl.drugagent_proj.slime.drug_agent.protocol.parse_policy import (
     ROLLOUT_MODE_TRAIN_STRICT,
     parse_action_with_policy,
     resolve_rollout_controls,
 )
-from drug_agent.tools.tool_success import evaluate_tool_success
-from drug_agent.utils import ensure_dir, write_json
+from git_cl.drugagent_proj.slime.drug_agent.tools.tool_success import evaluate_tool_success
+from git_cl.drugagent_proj.slime.drug_agent.utils import ensure_dir, write_json
 
 
 def _now_tag() -> str:
@@ -197,9 +197,9 @@ def _audit_tool_success_semantics() -> dict[str, Any]:
 
 
 async def _reward_probe_async() -> dict[str, Any]:
-    from slime.utils.types import Sample
+    from git_cl.drugagent_proj.slime.slime.utils.types import Sample
 
-    from drug_agent.rollout.reward_func import reward_func
+    from git_cl.drugagent_proj.slime.drug_agent.rollout.reward_func import reward_func
 
     sample = Sample(
         prompt="dummy",

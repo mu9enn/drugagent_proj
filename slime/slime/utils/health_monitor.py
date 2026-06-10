@@ -1,7 +1,7 @@
 import logging
 import threading
 
-import ray
+import git_cl.drugagent_proj.slime.slime.ray as ray
 
 
 logger = logging.getLogger(__name__)

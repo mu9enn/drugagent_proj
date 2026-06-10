@@ -2,7 +2,7 @@ import copy
 import logging
 import socket
 
-import ray
+import git_cl.drugagent_proj.slime.slime.ray as ray
 from ray.util.placement_group import placement_group
 from ray.util.scheduling_strategies import PlacementGroupSchedulingStrategy
 
@@ -123,7 +123,7 @@ def allocate_train_group(args, num_nodes, num_gpus_per_node, pg, role="actor"):
 def create_training_models(args, pgs, rollout_manager):
     actor_args = args
     if args.megatron_config_path is not None:
-        from slime.utils.arguments import parse_megatron_role_args
+        from git_cl.drugagent_proj.slime.slime.utils.arguments import parse_megatron_role_args
 
         actor_args = parse_megatron_role_args(args, args.megatron_config_path, role="actor")
 
@@ -136,7 +136,7 @@ def create_training_models(args, pgs, rollout_manager):
 
     critic_model = None
     if args.use_critic:
-        from slime.utils.arguments import parse_megatron_role_args
+        from git_cl.drugagent_proj.slime.slime.utils.arguments import parse_megatron_role_args
 
         critic_args = (
             parse_megatron_role_args(args, args.megatron_config_path, role="critic")

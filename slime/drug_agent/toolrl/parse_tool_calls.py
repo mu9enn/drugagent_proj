@@ -5,10 +5,10 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-from drug_agent.protocol.react_protocol import parse_react_sequence
-from drug_agent.toolrl.normalization import canonical_tool_name
-from drug_agent.tools.tool_registry import load_allowlist
-from drug_agent.utils import normalize_tool_name
+from git_cl.drugagent_proj.slime.drug_agent.protocol.react_protocol import parse_react_sequence
+from git_cl.drugagent_proj.slime.drug_agent.toolrl.normalization import canonical_tool_name
+from git_cl.drugagent_proj.slime.drug_agent.tools.tool_registry import load_allowlist
+from git_cl.drugagent_proj.slime.drug_agent.utils import normalize_tool_name
 
 
 DEFAULT_ALLOWLIST_PATH = Path(__file__).resolve().parents[1] / "tools" / "allowlist_v0.json"

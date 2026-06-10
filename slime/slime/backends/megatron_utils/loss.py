@@ -8,9 +8,9 @@ import torch.nn.functional as F
 from megatron.core import mpu
 from torch.utils.checkpoint import checkpoint
 
-from slime.utils.distributed_utils import distributed_masked_whiten
-from slime.utils.misc import load_function
-from slime.utils.ppo_utils import (
+from git_cl.drugagent_proj.slime.slime.utils.distributed_utils import distributed_masked_whiten
+from git_cl.drugagent_proj.slime.slime.utils.misc import load_function
+from git_cl.drugagent_proj.slime.slime.utils.ppo_utils import (
     calculate_log_probs_and_entropy,
     compute_approx_kl,
     compute_gspo_kl,
@@ -21,7 +21,7 @@ from slime.utils.ppo_utils import (
     get_reinforce_plus_plus_baseline_advantages,
     get_reinforce_plus_plus_returns,
 )
-from slime.utils.types import RolloutBatch
+from git_cl.drugagent_proj.slime.slime.utils.types import RolloutBatch
 
 from .cp_utils import (
     all_gather_with_cp,

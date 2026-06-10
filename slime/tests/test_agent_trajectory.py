@@ -7,7 +7,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from slime.agent.trajectory import TurnRecord, merge_turns
+from git_cl.drugagent_proj.slime.slime.agent.trajectory import TurnRecord, merge_turns
 
 
 NUM_GPUS = 0

@@ -31,8 +31,8 @@ from pathlib import Path
 
 import torch
 
-from slime.rollout.base_types import RolloutFnEvalOutput, RolloutFnTrainOutput
-from slime.utils.types import Sample
+from git_cl.drugagent_proj.slime.slime.rollout.base_types import RolloutFnEvalOutput, RolloutFnTrainOutput
+from git_cl.drugagent_proj.slime.slime.utils.types import Sample
 
 logger = logging.getLogger(__name__)
 

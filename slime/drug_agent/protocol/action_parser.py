@@ -4,7 +4,7 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
-from drug_agent.protocol.action_schema import (
+from git_cl.drugagent_proj.slime.drug_agent.protocol.action_schema import (
     ACTION_FINAL_ANSWER,
     ACTION_TOOL_CALL,
     ALLOWED_ACTION_TYPES,

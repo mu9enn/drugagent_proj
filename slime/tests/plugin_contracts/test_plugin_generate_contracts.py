@@ -11,14 +11,14 @@ try:
     from ._shared import get_contract_path, install_paths, install_stubs, run_contract_test_for_file
 except ImportError:
     try:
-        from plugin_contracts._shared import (
+        from git_cl.drugagent_proj.slime.tests.plugin_contracts._shared import (
             get_contract_path,
             install_paths,
             install_stubs,
             run_contract_test_for_file,
         )
     except ImportError:
-        from _shared import get_contract_path, install_paths, install_stubs, run_contract_test_for_file
+        from git_cl.drugagent_proj.slime.tests.plugin_contracts._shared import get_contract_path, install_paths, install_stubs, run_contract_test_for_file
 
 install_paths()
 install_stubs(with_sglang_router=True, with_transformers=True)
@@ -29,9 +29,9 @@ REFERENCE_CUSTOM_GENERATE_WITH_EVAL_PATH = (
     "plugin_contracts.test_plugin_generate_contracts.custom_generate_with_evaluation"
 )
 
-from slime.rollout.sglang_rollout import generate_and_rm
-from slime.utils.misc import load_function
-from slime.utils.types import Sample
+from git_cl.drugagent_proj.slime.slime.rollout.sglang_rollout import generate_and_rm
+from git_cl.drugagent_proj.slime.slime.utils.misc import load_function
+from git_cl.drugagent_proj.slime.slime.utils.types import Sample
 
 
 def run_contract_test_file() -> None:
@@ -117,7 +117,7 @@ class _PatchedGenerateState(FakeGenerateState):
 @pytest.fixture
 def patch_generate_state(monkeypatch):
     """Patch GenerateState with a test-safe variant; returns the sglang_rollout module."""
-    from slime.rollout import sglang_rollout
+    from git_cl.drugagent_proj.slime.slime.rollout import sglang_rollout
 
     monkeypatch.setattr(sglang_rollout, "GenerateState", _PatchedGenerateState)
     return sglang_rollout

@@ -5,8 +5,8 @@ import json
 import os
 from typing import Any
 
-from drug_agent.offline_guard import assert_tool_environment_allowed
-from drug_agent.utils import to_jsonable
+from git_cl.drugagent_proj.slime.drug_agent.offline_guard import assert_tool_environment_allowed
+from git_cl.drugagent_proj.slime.drug_agent.utils import to_jsonable
 
 
 class MCPClient:

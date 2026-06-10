@@ -6,7 +6,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-from drug_agent.utils import bool_from_any, clamp, normalize_tool_name
+from git_cl.drugagent_proj.slime.drug_agent.utils import bool_from_any, clamp, normalize_tool_name
 
 
 DEFAULT_CONFIG_PATH = Path(__file__).resolve().with_name("tool_schema_config.yaml")

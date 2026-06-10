@@ -1,6 +1,6 @@
 import pytest
 
-from slime.ray.rollout_validation import validate_server_group_gpu_indices
+from git_cl.drugagent_proj.slime.slime.ray.rollout_validation import validate_server_group_gpu_indices
 
 
 @pytest.mark.unit

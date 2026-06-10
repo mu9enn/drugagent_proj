@@ -1,8 +1,8 @@
 import dataclasses
 
 
-from slime.utils import megatron_bridge_utils
-from slime.utils.misc import chunk_named_params_by_size
+from git_cl.drugagent_proj.slime.slime.utils import megatron_bridge_utils
+from git_cl.drugagent_proj.slime.slime.utils.misc import chunk_named_params_by_size
 
 from ..megatron_to_hf import postprocess_hf_param
 from ..megatron_to_hf.processors import quantize_params
@@ -42,7 +42,7 @@ class HfWeightIteratorBridge(HfWeightIteratorBase):
 
         from megatron.bridge import AutoBridge
 
-        import slime_plugins.megatron_bridge  # noqa: F401
+        import git_cl.drugagent_proj.slime.slime_plugins.megatron_bridge  # noqa: F401
 
         self._bridge = megatron_bridge_utils.patch_auto_bridge_hf_config(
             AutoBridge.from_hf_pretrained(self.args.hf_checkpoint, trust_remote_code=True)

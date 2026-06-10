@@ -1,4 +1,4 @@
-from slime.utils.misc import get_current_node_ip, get_free_port
+from git_cl.drugagent_proj.slime.slime.utils.misc import get_current_node_ip, get_free_port
 
 
 class RayActor:

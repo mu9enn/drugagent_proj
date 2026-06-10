@@ -1,7 +1,7 @@
 import os
 import tempfile
 
-import slime.utils.external_utils.command_utils as U
+import git_cl.drugagent_proj.slime.slime.utils.external_utils.command_utils as U
 
 
 MODEL_NAME = "Qwen3.6-35B-A3B"

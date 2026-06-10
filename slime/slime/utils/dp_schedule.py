@@ -42,7 +42,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from slime.utils.seqlen_balancing import expand_bins_by_splitting, first_fit_pack, get_seqlen_balanced_partitions
+from git_cl.drugagent_proj.slime.slime.utils.seqlen_balancing import expand_bins_by_splitting, first_fit_pack, get_seqlen_balanced_partitions
 
 logger = logging.getLogger(__name__)
 

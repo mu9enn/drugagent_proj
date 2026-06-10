@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from drug_agent.toolrl.convert_react_to_toolrl_steps import convert_react_to_toolrl_steps
+from git_cl.drugagent_proj.slime.drug_agent.toolrl.convert_react_to_toolrl_steps import convert_react_to_toolrl_steps
 
 
 def _write_json(path: Path, payload: dict) -> None:

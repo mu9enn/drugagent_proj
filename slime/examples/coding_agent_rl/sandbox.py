@@ -20,7 +20,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from slime.agent.sandbox import E2BSandbox, Sandbox
+from git_cl.drugagent_proj.slime.slime.agent.sandbox import E2BSandbox, Sandbox
 
 
 logger = logging.getLogger(__name__)

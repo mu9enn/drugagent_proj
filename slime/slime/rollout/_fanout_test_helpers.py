@@ -46,7 +46,7 @@ async def compact_generate(args, sample, sampling_params):
     we're pinning the framework's per-rollout handling, not generation
     diversity.
     """
-    from slime.rollout.sglang_rollout import generate
+    from git_cl.drugagent_proj.slime.slime.rollout.sglang_rollout import generate
 
     counter_path = os.environ.get(COUNTER_FILE_ENV)
     if counter_path:

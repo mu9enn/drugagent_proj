@@ -5,15 +5,15 @@ import json
 from dataclasses import dataclass
 from typing import Any, Iterable
 
-from drug_agent.toolrl.normalization import (
+from git_cl.drugagent_proj.slime.drug_agent.toolrl.normalization import (
     canonical_argument_map,
     canonical_tool_name,
     compare_values,
     load_tool_schema_config,
     normalize_value,
 )
-from drug_agent.toolrl.parse_tool_calls import parse_tool_calls
-from drug_agent.utils import clamp, to_jsonable
+from git_cl.drugagent_proj.slime.drug_agent.toolrl.parse_tool_calls import parse_tool_calls
+from git_cl.drugagent_proj.slime.drug_agent.utils import clamp, to_jsonable
 
 
 @dataclass

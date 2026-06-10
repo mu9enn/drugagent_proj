@@ -1,6 +1,6 @@
 import unittest
 
-from drug_agent.gad.train_discriminator import _valid_pairs
+from git_cl.drugagent_proj.slime.drug_agent.gad.train_discriminator import _valid_pairs
 
 
 class TestWarmupPairs(unittest.TestCase):

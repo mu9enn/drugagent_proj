@@ -8,7 +8,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from slime.utils.dp_schedule import build_dp_schedule
+from git_cl.drugagent_proj.slime.slime.utils.dp_schedule import build_dp_schedule
 
 
 def make_args(

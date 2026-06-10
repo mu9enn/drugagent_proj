@@ -228,7 +228,7 @@ def _init_ray_distributed_post(args):
     if _post_actors:
         return  # Already initialized
 
-    import ray
+    import git_cl.drugagent_proj.slime.slime.ray as ray
     from ray.util.scheduling_strategies import NodeAffinitySchedulingStrategy
 
     # Discover alive nodes

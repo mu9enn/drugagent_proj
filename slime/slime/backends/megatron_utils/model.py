@@ -27,8 +27,8 @@ try:
     from megatron.core.pipeline_parallel.utils import unwrap_model
 except ImportError:
     from megatron.core.utils import unwrap_model
-from slime.utils import logging_utils
-from slime.utils.memory_utils import clear_memory
+from git_cl.drugagent_proj.slime.slime.utils import logging_utils
+from git_cl.drugagent_proj.slime.slime.utils.memory_utils import clear_memory
 
 from .checkpoint import load_checkpoint, save_checkpoint
 from .cp_utils import reduce_train_step_metrics
@@ -359,7 +359,7 @@ def forward_only(
         model_module.eval()
 
     if args.custom_megatron_before_log_prob_hook_path:
-        from slime.utils.misc import load_function
+        from git_cl.drugagent_proj.slime.slime.utils.misc import load_function
 
         custom_before_log_prob_hook = load_function(args.custom_megatron_before_log_prob_hook_path)
         custom_before_log_prob_hook(args, model, store_prefix)
@@ -462,7 +462,7 @@ def train_one_step(
     optimizer.zero_grad()
 
     if args.custom_megatron_before_train_step_hook_path:
-        from slime.utils.misc import load_function
+        from git_cl.drugagent_proj.slime.slime.utils.misc import load_function
 
         custom_before_train_step_hook = load_function(args.custom_megatron_before_train_step_hook_path)
         custom_before_train_step_hook(args, rollout_id, step_id, model, optimizer, opt_param_scheduler)
@@ -575,7 +575,7 @@ def train_one_step(
     # CI check: verify only MTP parameters have non-zero gradients when truncation happens
     # This check must happen before optimizer.step() as gradients may be modified during step
     if args.ci_test and args.enable_mtp_training:
-        from slime.backends.megatron_utils.ci_utils import check_mtp_only_grad
+        from git_cl.drugagent_proj.slime.slime.backends.megatron_utils.ci_utils import check_mtp_only_grad
 
         check_mtp_only_grad(model, step_id)
 
@@ -769,7 +769,7 @@ def train(
 
                 # CI check: verify MTP loss is within expected bounds
                 if args.ci_test:
-                    from slime.backends.megatron_utils.ci_utils import check_mtp_loss
+                    from git_cl.drugagent_proj.slime.slime.backends.megatron_utils.ci_utils import check_mtp_loss
 
                     check_mtp_loss(mtp_losses)
 
@@ -876,7 +876,7 @@ def save_hf_model(args, rollout_id: int, model: Sequence[DDP]) -> None:
     """
     if args.megatron_to_hf_mode != "bridge":
         try:
-            from slime.backends.megatron_utils.hf_checkpoint_saver import save_hf_model_direct
+            from git_cl.drugagent_proj.slime.slime.backends.megatron_utils.hf_checkpoint_saver import save_hf_model_direct
 
             save_hf_model_direct(args, rollout_id, model)
         except Exception as e:
@@ -894,7 +894,7 @@ def save_hf_model(args, rollout_id: int, model: Sequence[DDP]) -> None:
     try:
         from megatron.bridge import AutoBridge
 
-        from slime.utils.megatron_bridge_utils import patch_auto_bridge_hf_config, patch_megatron_model
+        from git_cl.drugagent_proj.slime.slime.utils.megatron_bridge_utils import patch_auto_bridge_hf_config, patch_megatron_model
 
         path = Path(args.save_hf.format(rollout_id=rollout_id))
 
@@ -935,7 +935,7 @@ def initialize_model_and_optimizer(
     if torch.version.hip:
         import megatron.core.dist_checkpointing.strategies.filesystem_async as filesystem_async_module
 
-        from slime.utils.rocm_checkpoint_writer import ROCmFileSystemWriterAsync
+        from git_cl.drugagent_proj.slime.slime.utils.rocm_checkpoint_writer import ROCmFileSystemWriterAsync
 
         filesystem_async_module.FileSystemWriterAsync = ROCmFileSystemWriterAsync
         print("[ROCm] Applied FileSystemWriterAsync patch for HIP compatibility")

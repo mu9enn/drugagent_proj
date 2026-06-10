@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-from slime.rollout.rm_hub.math_utils import (
+from git_cl.drugagent_proj.slime.slime.rollout.rm_hub.math_utils import (
     _strip_string,
     extract_answer,
     extract_boxed_answer,

@@ -61,8 +61,8 @@ from typing import Any
 import aiohttp
 from aiohttp import web
 
-from slime.agent.parsing import parse_model_output
-from slime.agent.trajectory import TokenSegment, TurnRecord, TurnSegment, make_turn_segment, merge_turn_segments
+from git_cl.drugagent_proj.slime.slime.agent.parsing import parse_model_output
+from git_cl.drugagent_proj.slime.slime.agent.trajectory import TokenSegment, TurnRecord, TurnSegment, make_turn_segment, merge_turn_segments
 
 logger = logging.getLogger(__name__)
 

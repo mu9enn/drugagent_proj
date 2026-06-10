@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from types import SimpleNamespace
 
-from drug_agent.toolrl.molclaw_reward import reward_func
+from git_cl.drugagent_proj.slime.drug_agent.toolrl.molclaw_reward import reward_func
 
 
 def _sample(response: str, label: dict, metadata: dict | None = None) -> SimpleNamespace:

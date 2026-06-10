@@ -58,10 +58,10 @@ from __future__ import annotations
 # the worker pick it up via this same module. pytest's prepend importmode
 # puts ``tests/`` on sys.path so the bare-name import works without an
 # ``__init__.py``; mp.spawn children inherit the parent's sys.path.
-import _cp_dist_helpers
+import git_cl.drugagent_proj.slime.tests._cp_dist_helpers as _cp_dist_helpers
 import pytest
 import torch
-from _cp_dist_helpers import (
+from git_cl.drugagent_proj.slime.tests._cp_dist_helpers import (
     FOUR_ROLLOUT_EXPECTED_REPORT,
     FOUR_ROLLOUT_RESPONSE_LENGTHS,
     FOUR_ROLLOUT_TOTAL_LENGTHS,
@@ -101,7 +101,7 @@ def _grad_norm_worker(
 
     dp_cp_group = init_worker_process_group(rank, world_size, master_port)
     try:
-        from slime.backends.megatron_utils.cp_utils import get_sum_of_sample_mean
+        from git_cl.drugagent_proj.slime.slime.backends.megatron_utils.cp_utils import get_sum_of_sample_mean
 
         # Same init across all (dp, cp) configs so the grad we backprop
         # into is comparable. ``manual_seed`` is enough on CPU because we

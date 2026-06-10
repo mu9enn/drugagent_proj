@@ -1,7 +1,7 @@
 import logging
 
-from slime.utils.mask_utils import MultiTurnLossMaskGenerator
-from slime.utils.processing_utils import load_processor, load_tokenizer
+from git_cl.drugagent_proj.slime.slime.utils.mask_utils import MultiTurnLossMaskGenerator
+from git_cl.drugagent_proj.slime.slime.utils.processing_utils import load_processor, load_tokenizer
 
 __all__ = ["generate_rollout"]
 

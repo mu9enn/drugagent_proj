@@ -32,11 +32,11 @@ from typing import Any
 import numpy as np
 import pybase64
 
-from slime.rollout.sglang_rollout import GenerateState, _prepare_prompt_ids
-from slime.utils import http_utils
-from slime.utils.processing_utils import encode_image_for_rollout_engine
-from slime.utils.trace_utils import build_sglang_meta_trace_attrs, trace_span
-from slime.utils.types import Sample
+from git_cl.drugagent_proj.slime.slime.rollout.sglang_rollout import GenerateState, _prepare_prompt_ids
+from git_cl.drugagent_proj.slime.slime.utils import http_utils
+from git_cl.drugagent_proj.slime.slime.utils.processing_utils import encode_image_for_rollout_engine
+from git_cl.drugagent_proj.slime.slime.utils.trace_utils import build_sglang_meta_trace_attrs, trace_span
+from git_cl.drugagent_proj.slime.slime.utils.types import Sample
 
 __all__ = ["generate_streaming"]
 

@@ -5,8 +5,8 @@ import json
 import random
 from pathlib import Path
 
-from drug_agent.gad.discriminator import GADDiscriminator
-from drug_agent.utils import read_jsonl
+from git_cl.drugagent_proj.slime.drug_agent.gad.discriminator import GADDiscriminator
+from git_cl.drugagent_proj.slime.drug_agent.utils import read_jsonl
 
 
 def _valid_pairs(rows):

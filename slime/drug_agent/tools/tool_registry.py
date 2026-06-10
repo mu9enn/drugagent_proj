@@ -5,8 +5,8 @@ import os
 from pathlib import Path
 from typing import Any
 
-from drug_agent.tools.tool_executor import MCPToolExecutor
-from drug_agent.utils import normalize_tool_name
+from git_cl.drugagent_proj.slime.drug_agent.tools.tool_executor import MCPToolExecutor
+from git_cl.drugagent_proj.slime.drug_agent.utils import normalize_tool_name
 
 
 DEFAULT_ALLOWLIST_PATH = Path(__file__).resolve().parent / "allowlist_v0.json"

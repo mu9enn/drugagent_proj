@@ -5,7 +5,7 @@ from pathlib import Path
 
 import torch
 
-from slime.utils.memory_utils import print_memory
+from git_cl.drugagent_proj.slime.slime.utils.memory_utils import print_memory
 
 logger = logging.getLogger(__name__)
 

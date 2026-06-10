@@ -10,11 +10,11 @@ try:
     import orjson  # type: ignore
 except Exception:  # pragma: no cover - optional dependency
     orjson = None
-from examples.geo3k_vlm_multi_turn.base_env import BaseInteractionEnv
+from git_cl.drugagent_proj.slime.examples.geo3k_vlm_multi_turn.base_env import BaseInteractionEnv
 
-from slime.rollout.rm_hub import grade_answer_verl
-from slime.rollout.rm_hub.math_utils import extract_answer as extract_boxed_answer
-from slime.utils.types import Sample
+from git_cl.drugagent_proj.slime.slime.rollout.rm_hub import grade_answer_verl
+from git_cl.drugagent_proj.slime.slime.rollout.rm_hub.math_utils import extract_answer as extract_boxed_answer
+from git_cl.drugagent_proj.slime.slime.utils.types import Sample
 
 logger = logging.getLogger(__name__)
 

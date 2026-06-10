@@ -3,9 +3,9 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from drug_agent.constants import DEFAULT_SYSTEM_PROMPT
-from drug_agent.protocol.action_schema import ACTION_FORMAT_DOC
-from drug_agent.utils import normalize_tool_name
+from git_cl.drugagent_proj.slime.drug_agent.constants import DEFAULT_SYSTEM_PROMPT
+from git_cl.drugagent_proj.slime.drug_agent.protocol.action_schema import ACTION_FORMAT_DOC
+from git_cl.drugagent_proj.slime.drug_agent.utils import normalize_tool_name
 
 
 def build_system_prompt() -> str:

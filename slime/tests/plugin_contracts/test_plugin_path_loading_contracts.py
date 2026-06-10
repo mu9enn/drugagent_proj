@@ -11,7 +11,7 @@ try:
     from ._shared import contract_env_name, get_contract_path, install_paths, install_stubs, run_contract_test_for_file
 except ImportError:
     try:
-        from plugin_contracts._shared import (
+        from git_cl.drugagent_proj.slime.tests.plugin_contracts._shared import (
             contract_env_name,
             get_contract_path,
             install_paths,
@@ -19,7 +19,7 @@ except ImportError:
             run_contract_test_for_file,
         )
     except ImportError:
-        from _shared import (
+        from git_cl.drugagent_proj.slime.tests.plugin_contracts._shared import (
             contract_env_name,
             get_contract_path,
             install_paths,
@@ -32,13 +32,13 @@ install_stubs(with_sglang_router=True, with_transformers=True)
 
 NUM_GPUS = 0
 
-from slime.rollout.base_types import RolloutFnEvalOutput, call_rollout_fn
-from slime.rollout.data_source import RolloutDataSourceWithBuffer
-from slime.rollout.filter_hub.base_types import DynamicFilterOutput, call_dynamic_filter
-from slime.rollout.rm_hub import async_rm, batched_async_rm
-from slime.rollout.sglang_rollout import generate_rollout as default_generate_rollout
-from slime.utils.misc import load_function
-from slime.utils.types import Sample
+from git_cl.drugagent_proj.slime.slime.rollout.base_types import RolloutFnEvalOutput, call_rollout_fn
+from git_cl.drugagent_proj.slime.slime.rollout.data_source import RolloutDataSourceWithBuffer
+from git_cl.drugagent_proj.slime.slime.rollout.filter_hub.base_types import DynamicFilterOutput, call_dynamic_filter
+from git_cl.drugagent_proj.slime.slime.rollout.rm_hub import async_rm, batched_async_rm
+from git_cl.drugagent_proj.slime.slime.rollout.sglang_rollout import generate_rollout as default_generate_rollout
+from git_cl.drugagent_proj.slime.slime.utils.misc import load_function
+from git_cl.drugagent_proj.slime.slime.utils.types import Sample
 
 
 def run_contract_test_file() -> None:

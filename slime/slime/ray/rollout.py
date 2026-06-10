@@ -9,22 +9,22 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-import ray
+import git_cl.drugagent_proj.slime.slime.ray as ray
 import torch
 from ray.util.scheduling_strategies import PlacementGroupSchedulingStrategy
 from sglang.srt.constants import GPU_MEMORY_TYPE_CUDA_GRAPH, GPU_MEMORY_TYPE_KV_CACHE, GPU_MEMORY_TYPE_WEIGHTS
 
-from slime.backends.sglang_utils.sglang_config import ModelConfig, ServerGroupConfig, SglangConfig
-from slime.backends.sglang_utils.sglang_engine import SGLangEngine
-from slime.rollout.base_types import call_rollout_fn
-from slime.utils import logging_utils
-from slime.utils.dp_schedule import build_dp_schedule
-from slime.utils.health_monitor import RolloutHealthMonitor
-from slime.utils.http_utils import _wrap_ipv6, find_available_port, get_host_info, init_http_client
-from slime.utils.logging_utils import configure_logger, init_tracking
-from slime.utils.metric_utils import compute_pass_rate, compute_rollout_step, compute_statistics, dict_add_prefix
-from slime.utils.misc import Box, group_by, load_function
-from slime.utils.types import Sample
+from git_cl.drugagent_proj.slime.slime.backends.sglang_utils.sglang_config import ModelConfig, ServerGroupConfig, SglangConfig
+from git_cl.drugagent_proj.slime.slime.backends.sglang_utils.sglang_engine import SGLangEngine
+from git_cl.drugagent_proj.slime.slime.rollout.base_types import call_rollout_fn
+from git_cl.drugagent_proj.slime.slime.utils import logging_utils
+from git_cl.drugagent_proj.slime.slime.utils.dp_schedule import build_dp_schedule
+from git_cl.drugagent_proj.slime.slime.utils.health_monitor import RolloutHealthMonitor
+from git_cl.drugagent_proj.slime.slime.utils.http_utils import _wrap_ipv6, find_available_port, get_host_info, init_http_client
+from git_cl.drugagent_proj.slime.slime.utils.logging_utils import configure_logger, init_tracking
+from git_cl.drugagent_proj.slime.slime.utils.metric_utils import compute_pass_rate, compute_rollout_step, compute_statistics, dict_add_prefix
+from git_cl.drugagent_proj.slime.slime.utils.misc import Box, group_by, load_function
+from git_cl.drugagent_proj.slime.slime.utils.types import Sample
 
 from ..utils.metric_utils import has_repetition
 from .rollout_validation import validate_server_group_gpu_indices
@@ -968,7 +968,7 @@ def _start_router(args, *, has_pd_disaggregation: bool = False, force_new: bool 
 
     from sglang_router.launch_router import RouterArgs
 
-    from slime.utils.http_utils import run_router
+    from git_cl.drugagent_proj.slime.slime.utils.http_utils import run_router
 
     router_args = RouterArgs.from_cli_args(args, use_router_prefix=True)
     router_args.host = router_ip

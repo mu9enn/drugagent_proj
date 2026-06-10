@@ -14,21 +14,21 @@ import sglang_router
 from packaging.version import parse
 from tqdm import tqdm
 
-from slime.rollout.base_types import RolloutFnEvalOutput, RolloutFnTrainOutput
-from slime.rollout.filter_hub.base_types import MetricGatherer, call_dynamic_filter
-from slime.utils.async_utils import run
-from slime.utils.data import Dataset
-from slime.utils.eval_config import EvalDatasetConfig
-from slime.utils.http_utils import get, post
-from slime.utils.misc import SingletonMeta, load_function
-from slime.utils.processing_utils import (
+from git_cl.drugagent_proj.slime.slime.rollout.base_types import RolloutFnEvalOutput, RolloutFnTrainOutput
+from git_cl.drugagent_proj.slime.slime.rollout.filter_hub.base_types import MetricGatherer, call_dynamic_filter
+from git_cl.drugagent_proj.slime.slime.utils.async_utils import run
+from git_cl.drugagent_proj.slime.slime.utils.data import Dataset
+from git_cl.drugagent_proj.slime.slime.utils.eval_config import EvalDatasetConfig
+from git_cl.drugagent_proj.slime.slime.utils.http_utils import get, post
+from git_cl.drugagent_proj.slime.slime.utils.misc import SingletonMeta, load_function
+from git_cl.drugagent_proj.slime.slime.utils.processing_utils import (
     build_processor_kwargs,
     encode_image_for_rollout_engine,
     load_processor,
     load_tokenizer,
 )
-from slime.utils.trace_utils import build_sglang_meta_trace_attrs, trace_function, trace_span
-from slime.utils.types import Sample
+from git_cl.drugagent_proj.slime.slime.utils.trace_utils import build_sglang_meta_trace_attrs, trace_function, trace_span
+from git_cl.drugagent_proj.slime.slime.utils.types import Sample
 
 from .rm_hub import async_rm, batched_async_rm
 

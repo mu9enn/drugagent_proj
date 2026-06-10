@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Any
 
-from slime.utils.types import Sample
+from git_cl.drugagent_proj.slime.slime.utils.types import Sample
 
 
 @dataclass

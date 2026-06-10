@@ -9,9 +9,9 @@ import sys
 if __package__ is None or __package__ == "":
     sys.path.append(str(Path(__file__).resolve().parents[2]))
 
-from slime.utils.types import Sample
+from git_cl.drugagent_proj.slime.slime.utils.types import Sample
 
-from drug_agent.rollout.reward_func import reward_func
+from git_cl.drugagent_proj.slime.drug_agent.rollout.reward_func import reward_func
 
 
 class _Args:

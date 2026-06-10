@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import pytest
 
-from slime.rollout.rm_hub.math_dapo_utils import (
+from git_cl.drugagent_proj.slime.slime.rollout.rm_hub.math_dapo_utils import (
     compute_score,
     is_correct_minerva,
     is_correct_strict_box,

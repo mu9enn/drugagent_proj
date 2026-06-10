@@ -5,8 +5,8 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-from drug_agent.constants import RAW_TASK_TYPES
-from drug_agent.utils import (
+from git_cl.drugagent_proj.slime.drug_agent.constants import RAW_TASK_TYPES
+from git_cl.drugagent_proj.slime.drug_agent.utils import (
     bool_from_any,
     is_mcp_tool_name,
     normalize_tool_name,

@@ -7,18 +7,18 @@ try:
 except ImportError as e:
     raise ImportError("Jinja2 is required. Please install it with: pip install jinja2") from e
 
-from slime.rollout.sglang_rollout import GenerateState
-from slime.utils.http_utils import post
-from slime.utils.types import Sample
+from git_cl.drugagent_proj.slime.slime.rollout.sglang_rollout import GenerateState
+from git_cl.drugagent_proj.slime.slime.utils.http_utils import post
+from git_cl.drugagent_proj.slime.slime.utils.types import Sample
 
 # Import reward models
 try:
-    from slime.rollout.rm_hub.math_dapo_utils import compute_score as math_dapo_compute_score
+    from git_cl.drugagent_proj.slime.slime.rollout.rm_hub.math_dapo_utils import compute_score as math_dapo_compute_score
 except ImportError as e:
     raise ImportError("MathDapo is not installed") from e
 
 # Import tool sandbox functionality
-from tool_sandbox import SEMAPHORE, TOOL_CONFIGS, tool_registry
+from git_cl.drugagent_proj.slime.examples.retool.tool_sandbox import SEMAPHORE, TOOL_CONFIGS, tool_registry
 
 # Jinja2 template for tool-enabled conversations
 TOOL_TEMPLATE = """<|im_start|>system
